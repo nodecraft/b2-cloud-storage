@@ -17,6 +17,14 @@
 		"b2",
 		"upload"
 	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/nodecraft/b2-cloud-storage.git"
+	},
+	"bugs": {
+		"url": "https://github.com/nodecraft/b2-cloud-storage/issues"
+	},
+	"homepage": "https://github.com/nodecraft/b2-cloud-storage#readme",
 	"author": "Nodecraft Inc.",
 	"license": "MIT",
 	"dependencies": {
