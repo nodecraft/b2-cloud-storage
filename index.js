@@ -9,7 +9,7 @@ const request = require('request'),
 
 const b2Upload = class {
 	constructor(data){
-		if(!data.auth){
+		if(!data || !data.auth){
 			throw new Error('Missing authentication object');
 		}
 		if(!data.auth.accountId){
