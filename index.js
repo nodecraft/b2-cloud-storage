@@ -80,6 +80,7 @@ const b2CloudStorage = class {
 	 * @param {String} data.bucketId The target bucket the file is to be uploaded.
 	 * @param {String} data.fileName The object keyname that is being uploaded.
 	 * @param {String} data.contentType Content/mimetype required for file download.
+	 * @param {Function} [data.onUploadProgress] Callback function on progress of entire upload
 	 * @param {Object} [data.info] File info metadata for the file.
 	 * @param {String} [data.hash] Skips the sha1 hash step with hash already provided.
 	 * @param {Function} [callback]
