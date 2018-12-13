@@ -7,19 +7,35 @@ const request = require('request'),
 	_ = require('lodash'),
 	async = require('async');
 
-const b2Upload = class {
-	constructor(data){
-		if(!data || !data.auth){
+/**
+ * Backblaze B2 Cloud Storage class to handle stream-based uploads and all other API methods.
+ */
+const b2CloudStorage = class {
+	/**
+	 * Creates new instance of the b2CloudStorage class.
+	 * @param  {object} options Required: Class options to set auth and other options
+	 * @param  {object} options.auth Authentication object
+	 * @param  {string} options.auth.accountId Backblaze b2 account ID for the API key.
+	 * @param  {string} options.auth.applicationKey Backblaze b2 application API key.
+	 * @param  {number} options.maxSmallFileSize Maximum filesize for the upload to upload as a single upload. Any larger size will be chunked as a Large File upload.
+	 * @param  {string} options.url URL hostname to use when authenticating to Backblaze B2. This omits `b2api/` and the version from the URI.
+	 * @param  {string} options.version API version used in the Backblaze B2 url. This follows hthe `b2api/` part of the URI.
+	 * @param  {number} options.maxPartAttempts Maximum retries each part can reattempt before erroring when uploading a Large File.
+	 * @param  {number} options.maxTotalErrors Mamimum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed.
+	 * @return {undefined}
+	 */
+	constructor(options){
+		if(!options || !options.auth){
 			throw new Error('Missing authentication object');
 		}
-		if(!data.auth.accountId){
+		if(!options.auth.accountId){
 			throw new Error('Missing authentication accountId');
 		}
-		if(!data.auth.applicationKey){
+		if(!options.auth.applicationKey){
 			throw new Error('Missing authentication applicationKey');
 		}
 
-		this.maxSmallFileSize = data.maxSmallFileSize || 100000000;
+		this.maxSmallFileSize = options.maxSmallFileSize || 100000000;
 		if(this.maxSmallFileSize > 5000000000){
 			throw new Error('maxSmallFileSize can not exceed 5GB');
 		}
@@ -27,13 +43,461 @@ const b2Upload = class {
 			throw new Error('maxSmallFileSize can not be less than 100MB');
 		}
 
-		this.auth = data.auth;
-		this.url = data.url || 'https://api.backblazeb2.com';
-		this.version = data.version || 'v2';
-		this.maxPartAttempts = data.maxPartAttempts || 3; // retry each chunk up to 3 times
-		this.maxTotalErrors = data.maxTotalErrors || 10; // quit if 10 chunks fail
+		this.auth = options.auth;
+		this.url = options.url || 'https://api.backblazeb2.com';
+		this.version = options.version || 'v2';
+		this.maxPartAttempts = options.maxPartAttempts || 3; // retry each chunk up to 3 times
+		this.maxTotalErrors = options.maxTotalErrors || 10; // quit if 10 chunks fail
 	}
 
+	/**
+	 * `b2_authorize_account` method, required before calling any B2 API routes.
+	 * @param {Function} [callback]
+	 */
+	authorize(callback){
+		this.request({
+			auth: {
+				user: this.auth.accountId,
+				password: this.auth.applicationKey
+			},
+			apiUrl: 'https://api.backblazeb2.com',
+			url: 'b2_authorize_account'
+		}, (err, results) => {
+			if(err){
+				return callback(err);
+			}
+			this.authData = results;
+			this.url = results.apiUrl;
+			return callback(null, results);
+		});
+	}
+
+	/**
+	 * Upload file with `b2_upload_file` or as several parts of a large file upload.
+	 * This method also will get the filesize & sha1 hash of the entire file.
+	 * @param {String} filename Path to filename to get sha1 hash.
+	 * @param {Object} data Configuration data passed from the `uploadFile` method.
+	 * @param {String} data.bucketId The target bucket the file is to be uploaded.
+	 * @param {String} data.fileName The object keyname that is being uploaded.
+	 * @param {String} data.contentType Content/mimetype required for file download.
+	 * @param {Object} [data.info] File info metadata for the file.
+	 * @param {String} [data.hash] Skips the sha1 hash step with hash already provided.
+	 * @param {Function} [callback]
+	 * @returns {object} Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`
+	 */
+	uploadFile(filename, data, callback = function(){}){
+		// todo: check if allowed (access) to upload files
+		if(data.partSize < 5000000){
+			return callback(new Error('partSize can not be lower than 5MB'));
+		}
+
+		const self = this;
+		let smallFile = null;
+		let cancel = null;
+
+		let fileFuncs = {};
+		let returnFuncs = {
+			cancel: function(){
+				cancel = true;
+				if(fileFuncs.cancel){
+					return fileFuncs.cancel();
+				}
+			},
+			progress: function(){
+				if(fileFuncs.progress){
+					return fileFuncs.progress();
+				}
+				return {
+					percent: 0,
+					bytesDispatched: 0,
+					bytesTotal: data.size || 0
+				};
+			},
+			info: function(){
+				if(fileFuncs.info){
+					return fileFuncs.info();
+				}
+				return null;
+			}
+		};
+		async.series([
+			function(cb){
+				if(cancel){ return cb(new Error('B2 upload cancelled')); }
+				if(data.hash){ return cb(); }
+				self.getFileHash(filename, data, function(err, hash){
+					if(err){ return cb(err); }
+					data.hash = hash;
+					return cb();
+				});
+			},
+			function(cb){
+				if(cancel){ return cb(new Error('B2 upload cancelled')); }
+				self.getStat(filename, function(err, stat){
+					if(err){ return cb(err); }
+					data.stat = stat;
+					data.size = stat.size;
+					smallFile = data.size <= self.maxSmallFileSize;
+					return cb();
+				});
+			}
+		], function(err){
+			if(cancel){ return callback(new Error('B2 upload cancelled')); }
+			if(err){
+				return callback(err);
+			}
+			if(smallFile){
+				fileFuncs = self.uploadFileSmall(filename, data, callback);
+				return;
+			}
+			fileFuncs = self.uploadFileLarge(filename, data, callback);
+		});
+		return returnFuncs;
+	}
+
+	/**
+	 * `b2_list_parts` Lists the parts that have been uploaded for a large file that has not been finished yet.
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.fileId The ID returned by `b2_start_large_file`. This is the file whose parts will be listed.
+	 * @param {Number} [data.startPartNumber] The first part to return. If there is a part with this number, it will be returned as the first in the list. If not, the returned list will start with the first part number after this one.
+	 * @param {Number} [data.maxPartCount] The maximum number of parts to return from this call. The default value is 100, and the maximum allowed is 1000.
+	 * @param {Function} [callback]
+	 */
+	listParts(data, callback){
+		return this.request({
+			url: 'b2_list_parts',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_list_unfinished_large_files` Lists information about large file uploads that have been started, but have not been finished or canceled.
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.bucketId The bucket to look for file names in.
+	 * @param {String} [data.namePrefix] When a `namePrefix` is provided, only files whose names match the prefix will be returned. When using an application key that is restricted to a name prefix, you must provide a prefix here that is at least as restrictive.
+	 * @param {String} [data.startFileId] The first upload to return. If there is an upload with this ID, it will be returned in the list. If not, the first upload after this the first one after this ID.
+	 * @param {Number} [data.maxFileCount] The maximum number of files to return from this call. The default value is 100, and the maximum allowed is 100.
+	 * @param {Function} [callback]
+	 */
+	listUnfinishedLargeFiles(data, callback){
+		return this.request({
+			url: 'b2_list_unfinished_large_files',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_get_file_info` Gets information about one file stored in B2.
+	 * @param {String} fileId The ID of the file, as returned by `b2_upload_file`, `b2_hide_file`, `b2_list_file_names`, or `b2_list_file_versions`.
+	 * @param {Function} [callback]
+	 */
+	getFileInfo(fileId, callback){
+		return this.request({
+			url: 'b2_get_file_info',
+			method: 'POST',
+			json: {
+				fileId
+			}
+		}, callback);
+	}
+
+	/**
+	 * `b2_list_buckets` Lists buckets associated with an account, in alphabetical order by bucket name.
+	 * @param {Object} [data] Message Body Parameters
+	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
+	 * @param {String} [data.bucketId] When bucketId is specified, the result will be a list containing just this bucket, if it's present in the account, or no buckets if the account does not have a bucket with this ID.
+	 * @param {Array} [data.bucketTypes] One of: "allPublic", "allPrivate", "snapshot", or other values added in the future. "allPublic" means that anybody can download the files is the bucket; "allPrivate" means that you need an authorization token to download them; "snapshot" means that it's a private bucket containing snapshots created on the B2 web site.
+	 * @param {Function} [callback]
+	 */
+	listBuckets(data, callback){
+		if(!callback && data){
+			callback = data;
+			data = {};
+		}
+		if(!data.accountId){
+			data.accountId = this.authData.accountId;
+		}
+		return this.request({
+			url: 'b2_list_buckets',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_create_bucket` Creates a new bucket. A bucket belongs to the account used to create it.
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.bucketName The name to give the new bucket.
+	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
+	 * @param {Array} [data.bucketType] Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files.
+	 * @param {Array} [data.bucketInfo] User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket.
+	 * @param {Array} [data.corsRules] The initial list (a JSON array) of CORS rules for this bucket. See CORS Rules for an overview and the rule structure.
+	 * @param {Array} [data.lifecycleRules] The initial list (a JSON array) of lifecycle rules for this bucket. Structure defined below. See Lifecycle Rules.
+	 * @param {Function} [callback]
+	 */
+	createBucket(data, callback){
+		if(!data.accountId){
+			data.accountId = this.authData.accountId;
+		}
+		return this.request({
+			url: 'b2_create_bucket',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_update_bucket` Update an existing bucket.
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.bucketId The unique ID of the bucket.
+	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
+	 * @param {Array} [data.bucketType] Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files.
+	 * @param {Array} [data.bucketInfo] User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket.
+	 * @param {Array} [data.corsRules] The initial list (a JSON array) of CORS rules for this bucket. See CORS Rules for an overview and the rule structure.
+	 * @param {Array} [data.lifecycleRules] The initial list (a JSON array) of lifecycle rules for this bucket. Structure defined below. See Lifecycle Rules.
+	 * @param {Array} [data.ifRevisionIs] When set, the update will only happen if the revision number stored in the B2 service matches the one passed in. This can be used to avoid having simultaneous updates make conflicting changes.
+	 * @param {Function} [callback]
+	 */
+	updateBucket(data, callback){
+		if(!data.accountId){
+			data.accountId = this.authData.accountId;
+		}
+		return this.request({
+			url: 'b2_update_bucket',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_delete_bucket` Deletes the bucket specified. Only buckets that contain no version of any files can be deleted.
+	 * @param {Object|String} data Message Body Parameters. If a string is provided it will be treated as the `bucketId`.
+	 * @param {String} data.bucketId The unique ID of the bucket.
+	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
+	 * @param {Function} [callback]
+	 */
+	deleteBucket(data, callback){
+		if(typeof(data) === 'string'){
+			data = {
+				bucketId: data
+			};
+		}
+		if(!data.accountId){
+			data.accountId = this.authData.accountId;
+		}
+		return this.request({
+			url: 'b2_delete_bucket',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	// TODO: create helper to handle looping
+
+	/**
+	 * `b2_list_file_names` Lists the names of all files in a bucket, starting at a given name.
+	 * @param {Object} data Message Body Parameters. If a string is provided it will be treated as the `bucketId`.
+	 * @param {String} data.bucketId The unique ID of the bucket.
+	 * @param {String} [data.startFileName] The first file name to return. If there is a file with this name, it will be returned in the list. If not, the first file name after this the first one after this name.
+	 * @param {Number} [data.maxFileCount] The maximum number of files to return from this call. The default value is 100, and the maximum is 10000. Passing in 0 means to use the default of 100.
+	 * @param {String} [data.prefix] Files returned will be limited to those with the given prefix. Defaults to the empty string, which matches all files.
+	 * @param {String} [data.delimiter] iles returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders.
+	 * @param {Function} [callback]
+	 */
+	listFileNames(data, callback){
+		return this.request({
+			url: 'b2_list_file_names',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_list_file_versions` Lists all of the versions of all of the files contained in one bucket, in alphabetical order by file name, and by reverse of date/time uploaded for versions of files with the same name.
+	 * @param {Object} data Message Body Parameters. If a string is provided it will be treated as the `bucketId`.
+	 * @param {String} data.bucketId The unique ID of the bucket.
+	 * @param {String} [data.startFileName] The first file name to return. If there is a file with this name, it will be returned in the list. If not, the first file name after this the first one after this name.
+	 * @param {Number} [data.startFileId] The first file ID to return. startFileName must also be provided if startFileId is specified.
+	 * @param {Number} [data.maxFileCount] The maximum number of files to return from this call. The default value is 100, and the maximum is 10000. Passing in 0 means to use the default of 100.
+	 * @param {String} [data.prefix] Files returned will be limited to those with the given prefix. Defaults to the empty string, which matches all files.
+	 * @param {String} [data.delimiter] iles returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders.
+	 * @param {Function} [callback]
+	 */
+	listFileVersions(data, callback){
+		return this.request({
+			url: 'b2_list_file_versions',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_list_keys` Deletes the bucket specified. Only buckets that contain no version of any files can be deleted.
+	 * @param {Object} [data] Message Body Parameters. If a string is provided it will be treated as the `bucketId`.
+	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
+	 * @param {Number} [data.maxKeyCount] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
+	 * @param {String} [data.startApplicationKeyId] The first key to return. Used when a query hits the maxKeyCount, and you want to get more. Set to the value returned as the nextApplicationKeyId in the previous query.
+	 * @param {Function} [callback]
+	 */
+	listKeys(data, callback){
+		if(!callback && data){
+			callback = data;
+			data = {};
+		}
+		if(!data.accountId){
+			data.accountId = this.authData.accountId;
+		}
+		return this.request({
+			url: 'b2_list_keys',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_create_key` Creates a new application key.
+	 * @param {Object} data Message Body Parameters.
+	 * @param {Number} data.capabilities A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`.
+	 * @param {Number} data.keyName A name for this key. There is no requirement that the name be unique. The name cannot be used to look up the key. Names can contain letters, numbers, and "-", and are limited to 100 characters.
+	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
+	 * @param {Number} [data.validDurationInSeconds] When provided, the key will expire after the given number of seconds, and will have expirationTimestamp set. Value must be a positive integer, and must be less than 1000 days (in seconds).
+	 * @param {String} [data.bucketId] When present, the new key can only access this bucket. When set, only these capabilities can be specified: `listBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`.
+	 * @param {String} [data.namePrefix] When present, restricts access to files whose names start with the prefix. You must set `bucketId` when setting this.
+	 * @param {Function} [callback]
+	 */
+	createKey(data, callback){
+		if(!data.accountId){
+			data.accountId = this.authData.accountId;
+		}
+		return this.request({
+			url: 'b2_create_key',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_delete_key` Deletes the application key specified.
+	 * @param {String} applicationKeyId The key to delete.
+	 * @param {Function} [callback]
+	 */
+	deleteKey(applicationKeyId, callback){
+		return this.request({
+			url: 'b2_delete_key',
+			method: 'POST',
+			json: {
+				applicationKeyId
+			}
+		}, callback);
+	}
+
+	// todo: improve and add ability to delete file + all versions
+
+	/**
+	 * `b2_delete_file_version` Deletes one version of a file from B2.
+	 * @param {Object} data Message Body Parameters.
+	 * @param {String} data.fileName The name of the file.
+	 * @param {String} data.fileId The ID of the file, as returned by `b2_upload_file`, `b2_list_file_names`, or `b2_list_file_versions`.
+	 * @param {Function} [callback]
+	 */
+	deleteFileVersion(data, callback){
+		return this.request({
+			url: 'b2_delete_file_version',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	// todo: greatly improve download functions
+
+	/**
+	 * `b2_download_file_by_id` Downloads one file from B2.
+	 * @param {Object} data Request Details
+	 * @param {String} data.Authorization An account authorization token.
+	 * @param {String} data.Range A standard byte-range request, which will return just part of the stored file.
+	 * @param {String} data.b2ContentDisposition If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded.
+	 * @param {Function} [callback]
+	 */
+	downloadFileById(data, callback){
+		if(!callback && typeof(callback) === 'function'){
+			callback = data;
+			data = {};
+		}
+		return this.request({
+			url: 'b2_download_file_by_id',
+			method: 'GET',
+			qs: data
+		}, callback);
+	}
+	// todo: greatly improve authorization magic
+
+	/**
+	 * `b2_download_file_by_name` Downloads one file by providing the name of the bucket and the name of the file.
+	 * @param {Object} data Request HTTP Headers
+	 * @param {String} data.downloadUrl Download hostname URL.
+	 * @param {String} data.bucket Bucket name.
+	 * @param {String} data.fileName file name.
+	 * @param {String} [data.Authorization] An account authorization token.
+	 * @param {String} [data.Range] A standard byte-range request, which will return just part of the stored file.
+	 * @param {Function} [callback]
+	 */
+	downloadFileByName(data, callback){
+		const requestData = {
+			url: `${data.downloadUrl}/file/${data.bucket}/${data.fileName}`,
+			method: 'GET',
+			json: false,
+			headers: {}
+		};
+		if(data.Authorization){
+			requestData.headers.Authorization = data.Authorization;
+		}
+		if(data.Range){
+			requestData.headers.Range = data.Range;
+		}
+		return this.request(requestData, callback);
+	}
+
+	/**
+	 * `b2_get_download_authorization` Used to generate an authorization token that can be used to download files with the specified prefix (and other optional headers) from a private B2 bucket. Returns an authorization token that can be passed to `b2_download_file_by_name` in the Authorization header or as an Authorization parameter.
+	 * @param {Object} data Message Body Parameters.
+	 * @param {String} data.bucketId The identifier for the bucket.
+	 * @param {String} data.fileNamePrefix The file name prefix of files the download authorization token will allow `b2_download_file_by_name` to access.
+	 * @param {Number} data.validDurationInSeconds The number of seconds before the authorization token will expire. The minimum value is 1 second. The maximum value is 604800 which is one week in seconds.
+	 * @param {Number} [data.b2ContentDisposition] If this is present, download requests using the returned authorization must include the same value for b2ContentDisposition. The value must match the grammar specified in RFC 6266 (except that parameter names that contain an '*' are not allowed).
+	 * @param {Function} [callback]
+	 */
+	getDownloadAuthorization(data, callback){
+		return this.request({
+			url: 'b2_get_download_authorization',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_hide_file` Hides a file so that downloading by name will not find the file, but previous versions of the file are still stored. See File Versions about what it means to hide a file.
+	 * @param {Object} data Message Body Parameters.
+	 * @param {String} data.bucketId The bucket containing the file to hide.
+	 * @param {String} data.fileName The name of the file to hide.
+	 * @param {Function} [callback]
+	 */
+	hideFile(data, callback){
+		return this.request({
+			url: 'b2_hide_file',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * Helper method: Request wrapper used to call Backblaze B2 API. All class methods consume this method internally.
+	 * @param {object} data Options object. Matches the same of the `request` npm module. The options listed below are changed or modified for this api.
+	 * @param {string} data.url URI path to append after the hostname, api path, and version.
+	 * @param {boolean} data.appendPath (internal) When set to false will prevent extra URI and hostname changes. Most useful when combined with `apiUrl`
+	 * @param {boolean} data.apiUrl (internal) Full URL path or hostname to replace. Most useful when combined with `appendPath`.
+	 * @param {Function} callback [description]
+	 */
 	request(data, callback){
 		const apiUrl = new url.URL(data.apiUrl || this.url);
 
@@ -79,6 +543,11 @@ const b2Upload = class {
 		});
 	}
 
+	/**
+	 * Helper method: Gets sha1 hash from a file read stream.
+	 * @param {Stream} fileStream File stream from `fs.readFileStream`.
+	 * @param {Function} [callback]
+	 */
 	getHash(fileStream, callback){
 		const hash = crypto.createHash('sha1');
 		fileStream.on('data', function(chunk){
@@ -90,39 +559,30 @@ const b2Upload = class {
 		});
 	}
 
-	getFileHash(filename, data, callback){
-		if(data.hash){
-			return callback(null, data.hash);
-		}
-		const fileStream = fs.createReadStream(filename);
-		return this.getHash(fileStream, callback);
+	/**
+	 * Helper method: Gets sha1 hash from a file.
+	 * @param {String} Path to filename to get sha1 hash.
+	 * @param {Function} [callback]
+	 */
+	getFileHash(filename, callback){
+		return this.getHash(fs.createReadStream(filename), callback);
 	}
 
+	/**
+	 * Helper method: Gets file stat info before upload.
+	 * @param {String} Path to filename to get sha1 hash.
+	 * @param {Function} [callback]
+	 */
 	getStat(filename, callback){
-		fs.stat(filename, function(err, results){
-			if(err){ return callback(err); }
-			return callback(null, results);
-		});
+		return fs.stat(filename, callback);
 	}
 
-	authorize(callback){
-		this.request({
-			auth: {
-				user: this.auth.accountId,
-				password: this.auth.applicationKey
-			},
-			apiUrl: 'https://api.backblazeb2.com',
-			url: 'b2_authorize_account'
-		}, (err, results) => {
-			if(err){
-				return callback(err);
-			}
-			this.authData = results;
-			this.url = results.apiUrl;
-			return callback(null, results);
-		});
-	}
-
+	/**
+	 * Helper method: Uploads a small file as a single part
+	 * @param {String} filename Path to filename to get sha1 hash.
+	 * @param {Object} data Configuration data passed from the `uploadFile` method.
+	 * @param {Function} [callback]
+	 */
 	uploadFileSmall(filename, data, callback = function(){}){
 		let r = null,
 			info = {};
@@ -218,6 +678,15 @@ const b2Upload = class {
 			}
 		};
 	}
+
+	/**
+	 * Helper method: Uploads a large file as several parts
+	 * This method will split the large files into several chunks & sha1 hash each part.
+	 * These chunks are uploaded in parallel to B2 and will retry on fail.
+	 * @param {String} filename Path to filename to get sha1 hash.
+	 * @param {Object} data Configuration data passed from the `uploadFile` method.
+	 * @param {Function} [callback]
+	 */
 	uploadFileLarge(filename, data, callback = function(){}){
 		const self = this;
 		const info = {upload_urls: {}, totalErrors: 0};
@@ -480,239 +949,6 @@ const b2Upload = class {
 			}
 		};
 	}
-	uploadFile(filename, data, callback = function(){}){
-		// data.bucketId
-		// data.fileName
-		// data.contentType
-		// data.hash // sha-1
-		// data.info // metadata
-		// todo: check if allowed (access) to upload files
-		if(data.partSize < 5000000){
-			return callback(new Error('partSize can not be lower than 5MB'));
-		}
-
-		const self = this;
-		let smallFile = null;
-		let cancel = null;
-
-		let fileFuncs = {};
-		let returnFuncs = {
-			cancel: function(){
-				cancel = true;
-				if(fileFuncs.cancel){
-					return fileFuncs.cancel();
-				}
-			},
-			progress: function(){
-				if(fileFuncs.progress){
-					return fileFuncs.progress();
-				}
-				return {
-					percent: 0,
-					bytesDispatched: 0,
-					bytesTotal: data.size || 0
-				};
-			},
-			info: function(){
-				if(fileFuncs.info){
-					return fileFuncs.info();
-				}
-				return null;
-			}
-		};
-		async.series([
-			function(cb){
-				if(cancel){ return cb(new Error('B2 upload cancelled')); }
-				self.getFileHash(filename, data, function(err, hash){
-					if(err){ return cb(err); }
-					data.hash = hash;
-					return cb();
-				});
-			},
-			function(cb){
-				if(cancel){ return cb(new Error('B2 upload cancelled')); }
-				self.getStat(filename, function(err, stat){
-					if(err){ return cb(err); }
-					data.stat = stat;
-					data.size = stat.size;
-					smallFile = data.size <= self.maxSmallFileSize;
-					return cb();
-				});
-			}
-		], function(err){
-			if(cancel){ return callback(new Error('B2 upload cancelled')); }
-			if(err){
-				return callback(err);
-			}
-			if(smallFile){
-				fileFuncs = self.uploadFileSmall(filename, data, callback);
-				return;
-			}
-			fileFuncs = self.uploadFileLarge(filename, data, callback);
-		});
-		return returnFuncs;
-	}
-	listParts(data, callback){
-		return this.request({
-			url: 'b2_list_parts',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	listUnfinishedLargeFiles(data, callback){
-		return this.request({
-			url: 'b2_list_unfinished_large_files',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	getFileInfo(fileId, callback){
-		return this.request({
-			url: 'b2_get_file_info',
-			method: 'POST',
-			json: {
-				fileId
-			}
-		}, callback);
-	}
-	listBuckets(data, callback){
-		if(!callback && data){
-			callback = data;
-			data = {};
-		}
-		if(!data.accountId){
-			data.accountId = this.authData.accountId;
-		}
-		return this.request({
-			url: 'b2_list_buckets',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	createBucket(data, callback){
-		if(!data.accountId){
-			data.accountId = this.authData.accountId;
-		}
-		return this.request({
-			url: 'b2_create_bucket',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	updateBucket(data, callback){
-		if(!data.accountId){
-			data.accountId = this.authData.accountId;
-		}
-		return this.request({
-			url: 'b2_update_bucket',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	deleteBucket(data, callback){
-		if(typeof(data) === 'string'){
-			data = {
-				bucketId: data
-			};
-		}
-		if(!data.accountId){
-			data.accountId = this.authData.accountId;
-		}
-		return this.request({
-			url: 'b2_delete_bucket',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	listFileNames(data, callback){
-		return this.request({
-			url: 'b2_list_file_names',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	listFileVersions(data, callback){
-		return this.request({
-			url: 'b2_list_file_versions',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	listKeys(data, callback){
-		if(!callback && data){
-			callback = data;
-			data = {};
-		}
-		if(!data.accountId){
-			data.accountId = this.authData.accountId;
-		}
-		return this.request({
-			url: 'b2_list_keys',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	createKey(data, callback){
-		if(!data.accountId){
-			data.accountId = this.authData.accountId;
-		}
-		return this.request({
-			url: 'b2_create_key',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	deleteKey(applicationKeyId, callback){
-		return this.request({
-			url: 'b2_delete_key',
-			method: 'POST',
-			json: {
-				applicationKeyId
-			}
-		}, callback);
-	}
-	// todo: improve and add ability to delete file + all versions
-	deleteFileVersion(data, callback){
-		return this.request({
-			url: 'b2_delete_file_version',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	// todo: greatly improve download functions
-	downloadFileById(data, callback){
-		return this.request({
-			url: 'b2_download_file_by_id',
-			method: 'GET',
-			qs: data
-		}, callback);
-	}
-	// todo: greatly improve authorization magic
-	downloadFileByName(data, callback){
-		const requestData = {
-			url: `${data.downloadUrl}/file/${data.bucket}/${data.fileId}`,
-			method: 'GET',
-			json: data
-		};
-		if(data.auth){
-			requestData.headers = {Authorization: data.auth};
-		}
-		return this.request(requestData, callback);
-	}
-	getDownloadAuthorization(data, callback){
-		return this.request({
-			url: 'b2_get_download_authorization',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
-	hideFile(data, callback){
-		return this.request({
-			url: 'b2_hide_file',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
 };
 
-module.exports = b2Upload;
+module.exports = b2CloudStorage;
