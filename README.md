@@ -10,7 +10,7 @@ Backblaze B2 Cloud Storage API Client
 const b2CloudStorage = require('b2-cloud-storage');
 
 const b2 = new b2CloudStorage({
-	accountId: '<accountId>' // NOTE: This is the accountId unique to the key
+	accountId: '<accountId>', // NOTE: This is the accountId unique to the key
 	applicationKey: '<applicationKey>'
 });
 
@@ -37,4 +37,3 @@ You can read get the [full documentation here](docs.md).
  - [ ] Add retries to small file uploads
  - [ ] Add helper methods to delete all file versions for a single file
  - [ ] Add helper methods to better query paginated search
- - 
