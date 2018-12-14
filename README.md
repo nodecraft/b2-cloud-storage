@@ -37,3 +37,4 @@ You can read get the [full documentation here](docs.md).
  - [ ] Add retries to small file uploads
  - [ ] Add helper methods to delete all file versions for a single file
  - [ ] Add helper methods to better query paginated search
+ - [ ] Automatically handle auth token expiration
