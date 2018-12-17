@@ -77,7 +77,7 @@ const b2CloudStorage = class {
 	/**
 	 * Upload file with `b2_upload_file` or as several parts of a large file upload.
 	 * This method also will get the filesize & sha1 hash of the entire file.
-	 * @param {String} filename Path to filename to get sha1 hash.
+	 * @param {String} filename Path to filename to for upload.
 	 * @param {Object} data Configuration data passed from the `uploadFile` method.
 	 * @param {String} data.bucketId The target bucket the file is to be uploaded.
 	 * @param {String} data.fileName The object keyname that is being uploaded.
@@ -495,7 +495,7 @@ const b2CloudStorage = class {
 
 	/**
 	 * Helper method: Request wrapper used to call Backblaze B2 API. All class methods consume this method internally.
-	 * @param {object} data Options object. Matches the same of the `request` npm module. The options listed below are changed or modified for this api.
+	 * @param {object} data Options object. Matches the same of the [`request`](https://github.com/request/request) npm module. The options listed below are changed or modified for this api.
 	 * @param {string} data.url URI path to append after the hostname, api path, and version.
 	 * @param {boolean} data.appendPath (internal) When set to false will prevent extra URI and hostname changes. Most useful when combined with `apiUrl`
 	 * @param {boolean} data.apiUrl (internal) Full URL path or hostname to replace. Most useful when combined with `appendPath`.
@@ -505,7 +505,7 @@ const b2CloudStorage = class {
 		const apiUrl = new url.URL(data.apiUrl || this.url);
 
 		if(data.appendPath !== false){
-			apiUrl.pathname += `/b2api/${this.version}/${data.url}`;
+			apiUrl.pathname += `b2api/${this.version}/${data.url}`;
 		}
 		const requestData = _.defaults(data, {
 			method: 'get',
@@ -560,6 +560,7 @@ const b2CloudStorage = class {
 
 	/**
 	 * Helper method: Gets sha1 hash from a file read stream.
+	 * @private
 	 * @param {Stream} fileStream File stream from `fs.readFileStream`.
 	 * @param {Function} [callback]
 	 */
@@ -576,6 +577,7 @@ const b2CloudStorage = class {
 
 	/**
 	 * Helper method: Gets sha1 hash from a file.
+	 * @private
 	 * @param {String} Path to filename to get sha1 hash.
 	 * @param {Function} [callback]
 	 */
@@ -585,7 +587,8 @@ const b2CloudStorage = class {
 
 	/**
 	 * Helper method: Gets file stat info before upload.
-	 * @param {String} Path to filename to get sha1 hash.
+	 * @private
+	 * @param {String} Path to filename to get file stats.
 	 * @param {Function} [callback]
 	 */
 	getStat(filename, callback){
@@ -594,7 +597,8 @@ const b2CloudStorage = class {
 
 	/**
 	 * Helper method: Uploads a small file as a single part
-	 * @param {String} filename Path to filename to get sha1 hash.
+	 * @private
+	 * @param {String} filename Path to filename for upload.
 	 * @param {Object} data Configuration data passed from the `uploadFile` method.
 	 * @param {Function} [callback]
 	 */
@@ -697,7 +701,8 @@ const b2CloudStorage = class {
 	 * Helper method: Uploads a large file as several parts
 	 * This method will split the large files into several chunks & sha1 hash each part.
 	 * These chunks are uploaded in parallel to B2 and will retry on fail.
-	 * @param {String} filename Path to filename to get sha1 hash.
+	 * @private
+	 * @param {String} filename Path to filename for upload.
 	 * @param {Object} data Configuration data passed from the `uploadFile` method.
 	 * @param {Function} [callback]
 	 */

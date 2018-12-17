@@ -27,11 +27,6 @@ Backblaze B2 Cloud Storage class to handle stream-based uploads and all other AP
     * [.getDownloadAuthorization(data, [callback])](#b2CloudStorage+getDownloadAuthorization)
     * [.hideFile(data, [callback])](#b2CloudStorage+hideFile)
     * [.request(data, callback)](#b2CloudStorage+request)
-    * [.getHash(fileStream, [callback])](#b2CloudStorage+getHash)
-    * [.getFileHash(Path, [callback])](#b2CloudStorage+getFileHash)
-    * [.getStat(Path, [callback])](#b2CloudStorage+getStat)
-    * [.uploadFileSmall(filename, data, [callback])](#b2CloudStorage+uploadFileSmall)
-    * [.uploadFileLarge(filename, data, [callback])](#b2CloudStorage+uploadFileLarge)
 
 <a name="new_b2CloudStorage_new"></a>
 
@@ -73,7 +68,7 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 
 | Param | Type | Description |
 | --- | --- | --- |
-| filename | <code>String</code> | Path to filename to get sha1 hash. |
+| filename | <code>String</code> | Path to filename to for upload. |
 | data | <code>Object</code> | Configuration data passed from the `uploadFile` method. |
 | data.bucketId | <code>String</code> | The target bucket the file is to be uploaded. |
 | data.fileName | <code>String</code> | The object keyname that is being uploaded. |
@@ -357,71 +352,9 @@ Helper method: Request wrapper used to call Backblaze B2 API. All class methods 
 
 | Param | Type | Description |
 | --- | --- | --- |
-| data | <code>object</code> | Options object. Matches the same of the `request` npm module. The options listed below are changed or modified for this api. |
+| data | <code>object</code> | Options object. Matches the same of the [`request`](https://github.com/request/request) npm module. The options listed below are changed or modified for this api. |
 | data.url | <code>string</code> | URI path to append after the hostname, api path, and version. |
 | data.appendPath | <code>boolean</code> | (internal) When set to false will prevent extra URI and hostname changes. Most useful when combined with `apiUrl` |
 | data.apiUrl | <code>boolean</code> | (internal) Full URL path or hostname to replace. Most useful when combined with `appendPath`. |
 | callback | <code>function</code> | [description] |
-
-<a name="b2CloudStorage+getHash"></a>
-
-### b2CloudStorage.getHash(fileStream, [callback])
-Helper method: Gets sha1 hash from a file read stream.
-
-**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| fileStream | <code>Stream</code> | File stream from `fs.readFileStream`. |
-| [callback] | <code>function</code> |  |
-
-<a name="b2CloudStorage+getFileHash"></a>
-
-### b2CloudStorage.getFileHash(Path, [callback])
-Helper method: Gets sha1 hash from a file.
-
-**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| Path | <code>String</code> | to filename to get sha1 hash. |
-| [callback] | <code>function</code> |  |
-
-<a name="b2CloudStorage+getStat"></a>
-
-### b2CloudStorage.getStat(Path, [callback])
-Helper method: Gets file stat info before upload.
-
-**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| Path | <code>String</code> | to filename to get sha1 hash. |
-| [callback] | <code>function</code> |  |
-
-<a name="b2CloudStorage+uploadFileSmall"></a>
-
-### b2CloudStorage.uploadFileSmall(filename, data, [callback])
-Helper method: Uploads a small file as a single part
-
-**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| filename | <code>String</code> | Path to filename to get sha1 hash. |
-| data | <code>Object</code> | Configuration data passed from the `uploadFile` method. |
-| [callback] | <code>function</code> |  |
-
-<a name="b2CloudStorage+uploadFileLarge"></a>
-
-### b2CloudStorage.uploadFileLarge(filename, data, [callback])
-Helper method: Uploads a large file as several partsThis method will split the large files into several chunks & sha1 hash each part.These chunks are uploaded in parallel to B2 and will retry on fail.
-
-**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| filename | <code>String</code> | Path to filename to get sha1 hash. |
-| data | <code>Object</code> | Configuration data passed from the `uploadFile` method. |
-| [callback] | <code>function</code> |  |
 
