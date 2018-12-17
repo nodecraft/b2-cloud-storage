@@ -1,4 +1,6 @@
 # b2-cloud-storage
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage?ref=badge_shield)
+
 Backblaze B2 Cloud Storage API Client
 
 **This module is still in development and not recommended for production use yet.**
@@ -38,3 +40,7 @@ You can read get the [full documentation here](docs.md).
  - [ ] Add helper methods to delete all file versions for a single file
  - [ ] Add helper methods to better query paginated search
  - [ ] Automatically handle auth token expiration
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage?ref=badge_large)
