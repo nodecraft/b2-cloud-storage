@@ -21,7 +21,8 @@ const b2CloudStorage = class {
 	 * @param  {string} options.url URL hostname to use when authenticating to Backblaze B2. This omits `b2api/` and the version from the URI.
 	 * @param  {string} options.version API version used in the Backblaze B2 url. This follows hthe `b2api/` part of the URI.
 	 * @param  {number} options.maxPartAttempts Maximum retries each part can reattempt before erroring when uploading a Large File.
-	 * @param  {number} options.maxTotalErrors Mamimum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed.
+	 * @param  {number} options.maxTotalErrors Maximum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed.
+	 * @param  {number} options.maxReauthAttempts Maximum times this library will try to reauthenticate if an auth token expires, before assuming failure.
 	 * @return {undefined}
 	 */
 	constructor(options){
@@ -48,6 +49,7 @@ const b2CloudStorage = class {
 		this.version = options.version || 'v2';
 		this.maxPartAttempts = options.maxPartAttempts || 3; // retry each chunk up to 3 times
 		this.maxTotalErrors = options.maxTotalErrors || 10; // quit if 10 chunks fail
+		this.maxReauthAttempts = options.maxReauthAttempts || 3; // quit if 3 re-auth attempts fail
 	}
 
 	/**
@@ -125,7 +127,7 @@ const b2CloudStorage = class {
 			function(cb){
 				if(cancel){ return cb(new Error('B2 upload cancelled')); }
 				if(data.hash){ return cb(); }
-				self.getFileHash(filename, data, function(err, hash){
+				self.getFileHash(filename, function(err, hash){
 					if(err){ return cb(err); }
 					data.hash = hash;
 					return cb();
@@ -519,29 +521,41 @@ const b2CloudStorage = class {
 		if(!requestData.headers.Authorization && !requestData.auth){
 			return callback(new Error('Not yet authorised. Call `.authorize` before running any functions.'));
 		}
-		return request(requestData, function(err, res, body){
-			if(err){
-				return callback(err);
+		let reqCount = 0;
+		const doRequest = () => {
+			if(reqCount >= this.maxReauthAttempts){
+				return callback(new Error('Auth token expired, and unable to re-authenticate to acquire new token.'));
 			}
-			// todo: handle unauthorized, etc.
-			if(res.statusCode !== 200){
-				let error = null;
-				if(typeof(body) === 'string'){
-					error = new Error(body);
+			reqCount++;
+			return request(requestData, function(err, res, body){
+				if(err){
+					return callback(err);
 				}
-				if(body.message){
-					error = new Error(body.message);
+				// auth expired, re-authorize and then make request again
+				if(res.statusCode === 401 && body && body.code === 'expired_auth_token'){
+					return this.authorize(doRequest);
 				}
-				if(!error){
-					error = new Error('Invalid response from API.', body);
+				// todo: handle more response codes.
+				if(res.statusCode !== 200){
+					let error = null;
+					if(typeof(body) === 'string'){
+						error = new Error(body);
+					}
+					if(body.message){
+						error = new Error(body.message);
+					}
+					if(!error){
+						error = new Error('Invalid response from API.', body);
+					}
+					return callback(error);
 				}
-				return callback(error);
-			}
-			if(res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
-				body = JSON.parse(body);
-			}
-			return callback(null, body, res.statusCode);
-		});
+				if(res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
+					body = JSON.parse(body);
+				}
+				return callback(null, body, res.statusCode);
+			});
+		};
+		return doRequest();
 	}
 
 	/**
@@ -640,7 +654,6 @@ const b2CloudStorage = class {
 				}).on('end', () => {
 					clearInterval(interval);
 				}).on('error', () => {
-					console.error('req error');
 					clearInterval(interval);
 				}).on('abort', () => {
 					clearInterval(interval);

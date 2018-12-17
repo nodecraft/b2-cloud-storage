@@ -49,7 +49,8 @@ Creates new instance of the b2CloudStorage class.
 | options.url | <code>string</code> | URL hostname to use when authenticating to Backblaze B2. This omits `b2api/` and the version from the URI. |
 | options.version | <code>string</code> | API version used in the Backblaze B2 url. This follows hthe `b2api/` part of the URI. |
 | options.maxPartAttempts | <code>number</code> | Maximum retries each part can reattempt before erroring when uploading a Large File. |
-| options.maxTotalErrors | <code>number</code> | Mamimum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed. |
+| options.maxTotalErrors | <code>number</code> | Maximum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed. |
+| options.maxReauthAttempts | <code>number</code> | Maximum times this library will try to reauthenticate if an auth token expires, before assuming failure. |
 
 <a name="b2CloudStorage+authorize"></a>
 
