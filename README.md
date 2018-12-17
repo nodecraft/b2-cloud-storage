@@ -1,4 +1,7 @@
 # b2-cloud-storage
+[![npm version](https://badge.fury.io/js/b2-cloud-storage.svg)](https://badge.fury.io/js/b2-cloud-storage)
+[![dependencies Status](https://david-dm.org/nodecraft/b2-cloud-storage/status.svg)](https://david-dm.org/nodecraft/b2-cloud-storage)
+[![Build Status](https://travis-ci.org/nodecraft/b2-cloud-storage.svg?branch=master)](https://travis-ci.org/nodecraft/b2-cloud-storage)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage?ref=badge_shield)
 
 Backblaze B2 Cloud Storage API Client
