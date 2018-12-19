@@ -232,9 +232,9 @@ const b2CloudStorage = class {
 	 * `b2_create_bucket` Creates a new bucket. A bucket belongs to the account used to create it.
 	 * @param {Object} data Message Body Parameters
 	 * @param {String} data.bucketName The name to give the new bucket.
+	 * @param {String} data.bucketType Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files.
 	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
-	 * @param {Array} [data.bucketType] Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files.
-	 * @param {Array} [data.bucketInfo] User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket.
+	 * @param {Object} [data.bucketInfo] User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket.
 	 * @param {Array} [data.corsRules] The initial list (a JSON array) of CORS rules for this bucket. See CORS Rules for an overview and the rule structure.
 	 * @param {Array} [data.lifecycleRules] The initial list (a JSON array) of lifecycle rules for this bucket. Structure defined below. See Lifecycle Rules.
 	 * @param {Function} [callback]
@@ -255,8 +255,8 @@ const b2CloudStorage = class {
 	 * @param {Object} data Message Body Parameters
 	 * @param {String} data.bucketId The unique ID of the bucket.
 	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
-	 * @param {Array} [data.bucketType] Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files.
-	 * @param {Array} [data.bucketInfo] User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket.
+	 * @param {String} [data.bucketType] Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files.
+	 * @param {Object} [data.bucketInfo] User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket.
 	 * @param {Array} [data.corsRules] The initial list (a JSON array) of CORS rules for this bucket. See CORS Rules for an overview and the rule structure.
 	 * @param {Array} [data.lifecycleRules] The initial list (a JSON array) of lifecycle rules for this bucket. Structure defined below. See Lifecycle Rules.
 	 * @param {Array} [data.ifRevisionIs] When set, the update will only happen if the revision number stored in the B2 service matches the one passed in. This can be used to avoid having simultaneous updates make conflicting changes.
@@ -513,7 +513,7 @@ const b2CloudStorage = class {
 			headers: {}
 		});
 		requestData.url = apiUrl.toString();
-		// if auth data is set from `authorize` function and we haven't overriden it via `data.auth` or request headers, set it for this request
+		// if auth data is set from `authorize` function and we haven't overridden it via `data.auth` or request headers, set it for this request
 		if(this.authData && !data.auth && !requestData.headers.Authorization){
 			requestData.headers.Authorization = this.authData.authorizationToken;
 		}
@@ -547,7 +547,7 @@ const b2CloudStorage = class {
 					if(!error){
 						error = new Error('Invalid response from API.', body);
 					}
-					return callback(error);
+					return callback(error, body);
 				}
 				if(res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
 					body = JSON.parse(body);

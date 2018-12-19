@@ -147,9 +147,9 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | --- | --- | --- |
 | data | <code>Object</code> | Message Body Parameters |
 | data.bucketName | <code>String</code> | The name to give the new bucket. |
+| data.bucketType | <code>String</code> | Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files. |
 | [data.accountId] | <code>String</code> | The ID of your account. When unset will use the `b2_authorize` results `accountId`. |
-| [data.bucketType] | <code>Array</code> | Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files. |
-| [data.bucketInfo] | <code>Array</code> | User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket. |
+| [data.bucketInfo] | <code>Object</code> | User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket. |
 | [data.corsRules] | <code>Array</code> | The initial list (a JSON array) of CORS rules for this bucket. See CORS Rules for an overview and the rule structure. |
 | [data.lifecycleRules] | <code>Array</code> | The initial list (a JSON array) of lifecycle rules for this bucket. Structure defined below. See Lifecycle Rules. |
 | [callback] | <code>function</code> |  |
@@ -166,8 +166,8 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | data | <code>Object</code> | Message Body Parameters |
 | data.bucketId | <code>String</code> | The unique ID of the bucket. |
 | [data.accountId] | <code>String</code> | The ID of your account. When unset will use the `b2_authorize` results `accountId`. |
-| [data.bucketType] | <code>Array</code> | Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files. |
-| [data.bucketInfo] | <code>Array</code> | User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket. |
+| [data.bucketType] | <code>String</code> | Either "allPublic", meaning that files in this bucket can be downloaded by anybody, or "allPrivate", meaning that you need a bucket authorization token to download the files. |
+| [data.bucketInfo] | <code>Object</code> | User-defined information to be stored with the bucket: a JSON object mapping names to values. See Buckets. Cache-Control policies can be set here on a global level for all the files in the bucket. |
 | [data.corsRules] | <code>Array</code> | The initial list (a JSON array) of CORS rules for this bucket. See CORS Rules for an overview and the rule structure. |
 | [data.lifecycleRules] | <code>Array</code> | The initial list (a JSON array) of lifecycle rules for this bucket. Structure defined below. See Lifecycle Rules. |
 | [data.ifRevisionIs] | <code>Array</code> | When set, the update will only happen if the revision number stored in the B2 service matches the one passed in. This can be used to avoid having simultaneous updates make conflicting changes. |
