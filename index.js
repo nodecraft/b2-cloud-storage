@@ -942,7 +942,7 @@ const b2CloudStorage = class {
 					info.returnData = results;
 					return cb();
 				});
-			},
+			}
 		], function(err){
 			if(interval){ clearInterval(interval); }
 			if(err || info.error){ return callback(err || info.error); }

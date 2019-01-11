@@ -8,7 +8,7 @@ module.exports = function(mocks, config){
 
 	/* create bucket with valid headers and missing `bucketName` */
 	mocks.api.post('/b2api/v2/b2_create_bucket', {
-		accountId: config.auth.buckets.responseAccountId,
+		accountId: config.auth.buckets.responseAccountId
 	}).matchHeader('authorization', config.authToken).reply(function(){
 		return [
 			400,
