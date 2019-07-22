@@ -237,7 +237,7 @@ const b2CloudStorage = class {
 	 * @param {Object} [data.range] The range of bytes to copy. If not provided, the whole source file will be copied.
 	 * @param {Array} [data.metadataDirective] The strategy for how to populate metadata for the new file.
 	 * @param {Array} [data.contentType] Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file.
-	 * @param {Array} [data.fileInfo] Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file. 
+	 * @param {Array} [data.fileInfo] Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file.
 	 * @param {Function} [callback]
 	 */
 	copyFile(data, callback){
