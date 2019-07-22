@@ -241,9 +241,6 @@ const b2CloudStorage = class {
 	 * @param {Function} [callback]
 	 */
 	copyFile(data, callback){
-		if(!data.accountId){
-			data.accountId = this.authData.accountId;
-		}
 		return this.request({
 			url: 'b2_copy_file',
 			method: 'POST',
@@ -261,9 +258,6 @@ const b2CloudStorage = class {
 	 * @param {Function} [callback]
 	 */
 	copyFilePart(data, callback){
-		if(!data.accountId){
-			data.accountId = this.authData.accountId;
-		}
 		return this.request({
 			url: 'b2_copy_part',
 			method: 'POST',
@@ -379,7 +373,7 @@ const b2CloudStorage = class {
 	}
 
 	/**
-	 * `b2_list_keys` Deletes the bucket specified. Only buckets that contain no version of any files can be deleted.
+	 * `b2_list_keys` Lists application keys associated with an account.
 	 * @param {Object} [data] Message Body Parameters. If a string is provided it will be treated as the `bucketId`.
 	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
 	 * @param {Number} [data.maxKeyCount] The ID of your account. When unset will use the `b2_authorize` results `accountId`.

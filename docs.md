@@ -262,7 +262,7 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 <a name="b2CloudStorage+listKeys"></a>
 
 ### b2CloudStorage.listKeys([data], [callback])
-`b2_list_keys` Deletes the bucket specified. Only buckets that contain no version of any files can be deleted.
+`b2_list_keys` Lists application keys associated with an account.
 
 **Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
 
