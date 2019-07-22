@@ -13,6 +13,8 @@ Backblaze B2 Cloud Storage class to handle stream-based uploads and all other AP
     * [.listUnfinishedLargeFiles(data, [callback])](#b2CloudStorage+listUnfinishedLargeFiles)
     * [.getFileInfo(fileId, [callback])](#b2CloudStorage+getFileInfo)
     * [.listBuckets([data], [callback])](#b2CloudStorage+listBuckets)
+    * [.copyFile(data, [callback])](#b2CloudStorage+copyFile)
+    * [.copyFilePart(data, [callback])](#b2CloudStorage+copyFilePart)
     * [.createBucket(data, [callback])](#b2CloudStorage+createBucket)
     * [.updateBucket(data, [callback])](#b2CloudStorage+updateBucket)
     * [.deleteBucket(data, [callback])](#b2CloudStorage+deleteBucket)
@@ -136,6 +138,41 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | [data.bucketTypes] | <code>Array</code> | One of: "allPublic", "allPrivate", "snapshot", or other values added in the future. "allPublic" means that anybody can download the files is the bucket; "allPrivate" means that you need an authorization token to download them; "snapshot" means that it's a private bucket containing snapshots created on the B2 web site. |
 | [callback] | <code>function</code> |  |
 
+<a name="b2CloudStorage+copyFile"></a>
+
+### b2CloudStorage.copyFile(data, [callback])
+`b2_copy_file` Creates a new file by copying from an existing file.
+
+**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Object</code> | Message Body Parameters |
+| data.sourceFileId | <code>String</code> | The ID of the source file being copied. |
+| data.fileName | <code>String</code> | The name of the new file being created. |
+| [data.destinationBucketId] | <code>String</code> | The ID of the bucket where the copied file will be stored. Uses original file bucket when unset. |
+| [data.range] | <code>Object</code> | The range of bytes to copy. If not provided, the whole source file will be copied. |
+| [data.metadataDirective] | <code>Array</code> | The strategy for how to populate metadata for the new file. |
+| [data.contentType] | <code>Array</code> | Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file. |
+| [data.fileInfo] | <code>Array</code> | Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file. |
+| [callback] | <code>function</code> |  |
+
+<a name="b2CloudStorage+copyFilePart"></a>
+
+### b2CloudStorage.copyFilePart(data, [callback])
+`b2_copy_part` Creates a new file by copying from an existing file.
+
+**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Object</code> | Message Body Parameters |
+| data.sourceFileId | <code>String</code> | The ID of the source file being copied. |
+| data.largeFileId | <code>String</code> | The ID of the large file the part will belong to, as returned by b2_start_large_file. |
+| [data.partNumber] | <code>String</code> | A number from 1 to 10000. The parts uploaded for one file must have contiguous numbers, starting with 1. |
+| [data.range] | <code>Object</code> | The range of bytes to copy. If not provided, the whole source file will be copied. |
+| [callback] | <code>function</code> |  |
+
 <a name="b2CloudStorage+createBucket"></a>
 
 ### b2CloudStorage.createBucket(data, [callback])
@@ -225,7 +262,7 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 <a name="b2CloudStorage+listKeys"></a>
 
 ### b2CloudStorage.listKeys([data], [callback])
-`b2_list_keys` Deletes the bucket specified. Only buckets that contain no version of any files can be deleted.
+`b2_list_keys` Lists application keys associated with an account.
 
 **Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
 

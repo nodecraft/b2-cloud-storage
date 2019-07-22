@@ -229,6 +229,43 @@ const b2CloudStorage = class {
 	}
 
 	/**
+	 * `b2_copy_file` Creates a new file by copying from an existing file.
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.sourceFileId The ID of the source file being copied.
+	 * @param {String} data.fileName The name of the new file being created.
+	 * @param {String} [data.destinationBucketId] The ID of the bucket where the copied file will be stored. Uses original file bucket when unset.
+	 * @param {Object} [data.range] The range of bytes to copy. If not provided, the whole source file will be copied.
+	 * @param {Array} [data.metadataDirective] The strategy for how to populate metadata for the new file.
+	 * @param {Array} [data.contentType] Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file.
+	 * @param {Array} [data.fileInfo] Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file.
+	 * @param {Function} [callback]
+	 */
+	copyFile(data, callback){
+		return this.request({
+			url: 'b2_copy_file',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
+	 * `b2_copy_part` Creates a new file by copying from an existing file.
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.sourceFileId The ID of the source file being copied.
+	 * @param {String} data.largeFileId The ID of the large file the part will belong to, as returned by b2_start_large_file.
+	 * @param {String} [data.partNumber] A number from 1 to 10000. The parts uploaded for one file must have contiguous numbers, starting with 1.
+	 * @param {Object} [data.range] The range of bytes to copy. If not provided, the whole source file will be copied.
+	 * @param {Function} [callback]
+	 */
+	copyFilePart(data, callback){
+		return this.request({
+			url: 'b2_copy_part',
+			method: 'POST',
+			json: data
+		}, callback);
+	}
+
+	/**
 	 * `b2_create_bucket` Creates a new bucket. A bucket belongs to the account used to create it.
 	 * @param {Object} data Message Body Parameters
 	 * @param {String} data.bucketName The name to give the new bucket.
@@ -336,7 +373,7 @@ const b2CloudStorage = class {
 	}
 
 	/**
-	 * `b2_list_keys` Deletes the bucket specified. Only buckets that contain no version of any files can be deleted.
+	 * `b2_list_keys` Lists application keys associated with an account.
 	 * @param {Object} [data] Message Body Parameters. If a string is provided it will be treated as the `bucketId`.
 	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
 	 * @param {Number} [data.maxKeyCount] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
