@@ -1,6 +1,7 @@
 'use strict';
 const url = require('url'),
 	crypto = require('crypto'),
+	os = require('os'),
 	fs = require('fs');
 
 const request = require('request'),
@@ -36,12 +37,21 @@ const b2CloudStorage = class {
 			throw new Error('Missing authentication applicationKey');
 		}
 
-		this.maxSmallFileSize = options.maxSmallFileSize || 100000000;
+		this.maxSmallFileSize = options.maxSmallFileSize || 100000000; // default to 100MB
 		if(this.maxSmallFileSize > 5000000000){
 			throw new Error('maxSmallFileSize can not exceed 5GB');
 		}
 		if(this.maxSmallFileSize < 100000000){
 			throw new Error('maxSmallFileSize can not be less than 100MB');
+		}
+
+		this.maxCopyWorkers = options.maxCopyWorkers || (os.cpus().length * 5); // default to the number of available CPUs * 5 (web requests are cheap)
+		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100000000; // default to 5GB
+		if(this.maxSmallCopyFileSize > 5000000000){
+			throw new Error('maxSmallFileSize can not exceed 5GB');
+		}
+		if(this.maxSmallCopyFileSize < 5000000){
+			throw new Error('maxSmallFileSize can not be less than 5MB');
 		}
 
 		this.auth = options.auth;
@@ -83,6 +93,8 @@ const b2CloudStorage = class {
 	 * @param {String} data.fileName The object keyname that is being uploaded.
 	 * @param {String} data.contentType Content/mimetype required for file download.
 	 * @param {Function} [data.onUploadProgress] Callback function on progress of entire upload
+	 * @param {Number} [data.progressInterval] How frequently the `onUploadProgress` callback is fired during upload
+	 * @param {Number} [data.partSize] Overwrite the default part size as defined by the b2 authorization process
 	 * @param {Object} [data.info] File info metadata for the file.
 	 * @param {String} [data.hash] Skips the sha1 hash step with hash already provided.
 	 * @param {Function} [callback]
@@ -125,7 +137,7 @@ const b2CloudStorage = class {
 		};
 		async.series([
 			function(cb){
-				if(cancel){ return cb(new Error('B2 upload cancelled')); }
+				if(cancel){ return cb(new Error('B2 upload canceled')); }
 				if(data.hash){ return cb(); }
 				self.getFileHash(filename, function(err, hash){
 					if(err){ return cb(err); }
@@ -134,7 +146,7 @@ const b2CloudStorage = class {
 				});
 			},
 			function(cb){
-				if(cancel){ return cb(new Error('B2 upload cancelled')); }
+				if(cancel){ return cb(new Error('B2 upload canceled')); }
 				self.getStat(filename, function(err, stat){
 					if(err){ return cb(err); }
 					data.stat = stat;
@@ -144,7 +156,7 @@ const b2CloudStorage = class {
 				});
 			}
 		], function(err){
-			if(cancel){ return callback(new Error('B2 upload cancelled')); }
+			if(cancel){ return callback(new Error('B2 upload canceled')); }
 			if(err){
 				return callback(err);
 			}
@@ -228,25 +240,7 @@ const b2CloudStorage = class {
 		}, callback);
 	}
 
-	/**
-	 * `b2_copy_file` Creates a new file by copying from an existing file.
-	 * @param {Object} data Message Body Parameters
-	 * @param {String} data.sourceFileId The ID of the source file being copied.
-	 * @param {String} data.fileName The name of the new file being created.
-	 * @param {String} [data.destinationBucketId] The ID of the bucket where the copied file will be stored. Uses original file bucket when unset.
-	 * @param {Object} [data.range] The range of bytes to copy. If not provided, the whole source file will be copied.
-	 * @param {Array} [data.metadataDirective] The strategy for how to populate metadata for the new file.
-	 * @param {Array} [data.contentType] Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file.
-	 * @param {Array} [data.fileInfo] Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file.
-	 * @param {Function} [callback]
-	 */
-	copyFile(data, callback){
-		return this.request({
-			url: 'b2_copy_file',
-			method: 'POST',
-			json: data
-		}, callback);
-	}
+
 
 	/**
 	 * `b2_copy_part` Creates a new file by copying from an existing file.
@@ -263,6 +257,102 @@ const b2CloudStorage = class {
 			method: 'POST',
 			json: data
 		}, callback);
+	}
+
+	/**
+	 * Copies a any size file using either `b2_copy_file` or `b2_copy_part` method automatically.
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.sourceFileId The ID of the source file being copied.
+	 * @param {String} data.fileName The name of the new file being created.
+	 * @param {Number} [data.size] Size of the file. If not specified will be looked up with an extra class C API call to `b2_get_file_info`.
+	 * @param {String} [data.destinationBucketId] The ID of the bucket where the copied file will be stored. Uses original file bucket when unset.
+	 * @param {String} [data.range] The range of bytes to copy. If not provided, the whole source file will be copied.
+	 * @param {String} [data.metadataDirective] The strategy for how to populate metadata for the new file.
+	 * @param {String} [data.contentType] Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file.
+	 * @param {Function} [data.onUploadProgress] Callback function on progress of entire copy
+	 * @param {Number} [data.progressInterval] How frequently the `onUploadProgress` callback is fired during upload
+	 * @param {Number} [data.partSize] Overwrite the default part size as defined by the b2 authorization process
+	 * @param {Object} [data.fileInfo] Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file.
+	 * @param {Function} [callback]
+	 * @returns {object} Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`
+	 */
+	copyFile(data, callback){
+		const self = this;
+
+		let returnData = null,
+			cancel = null,
+			fileFuncs = {};
+
+		const returnFuncs = {
+			cancel: function(){
+				cancel = true;
+				if(fileFuncs.cancel){
+					return fileFuncs.cancel();
+				}
+			},
+			progress: function(){
+				if(fileFuncs.progress){
+					return fileFuncs.progress();
+				}
+				return {
+					percent: 0,
+					bytesCopied: 0,
+					bytesTotal: data.size || 0
+				};
+			},
+			info: function(){
+				if(fileFuncs.info){
+					return fileFuncs.info();
+				}
+				return null;
+			}
+		};
+
+		async.series([
+			function(cb){
+				if(cancel){ return cb(new Error('B2 copy canceled')); }
+				if(data.size && data.hash && data.destinationBucketId && data.contentType){ return cb(); }
+				self.getFileInfo(data.sourceFileId, function(err, results){
+					if(err){ return cb(err); }
+					data.size = data.size || results.contentLength;
+					data.hash = data.hash || results.contentSha1;
+					data.destinationBucketId = data.destinationBucketId || results.bucketId;
+					data.contentType = data.contentType || results.contentType;
+					return cb();
+				});
+			},
+			function(cb){
+				if(cancel){ return cb(new Error('B2 copy canceled')); }
+				if(data.size > self.maxSmallCopyFileSize){
+					fileFuncs = self.copyLargeFile(data, function(err, results){
+						if(err){ return cb(err); }
+						returnData = results;
+						return cb();
+					});
+					return;
+				}
+				const fields = [
+					'sourceFileId',
+					'fileName',
+					'destinationBucketId',
+					'range',
+					'metadataDirective'
+				];
+				// only required for metadata replace
+				if(data.metadataDirective === 'REPLACE'){
+					fields.push('contentType', 'fileInfo');
+				}
+				fileFuncs = self.copySmallFile(_.pick(data, fields), function(err, results){
+					if(err){ return cb(err); }
+					returnData = results;
+					return cb();
+				});
+			}
+		], function(err){
+			if(err){ return callback(err); }
+			return callback(null, returnData);
+		});
+		return returnFuncs;
 	}
 
 	/**
@@ -342,7 +432,7 @@ const b2CloudStorage = class {
 	 * @param {String} [data.startFileName] The first file name to return. If there is a file with this name, it will be returned in the list. If not, the first file name after this the first one after this name.
 	 * @param {Number} [data.maxFileCount] The maximum number of files to return from this call. The default value is 100, and the maximum is 10000. Passing in 0 means to use the default of 100.
 	 * @param {String} [data.prefix] Files returned will be limited to those with the given prefix. Defaults to the empty string, which matches all files.
-	 * @param {String} [data.delimiter] iles returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders.
+	 * @param {String} [data.delimiter] files returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders.
 	 * @param {Function} [callback]
 	 */
 	listFileNames(data, callback){
@@ -361,7 +451,7 @@ const b2CloudStorage = class {
 	 * @param {Number} [data.startFileId] The first file ID to return. startFileName must also be provided if startFileId is specified.
 	 * @param {Number} [data.maxFileCount] The maximum number of files to return from this call. The default value is 100, and the maximum is 10000. Passing in 0 means to use the default of 100.
 	 * @param {String} [data.prefix] Files returned will be limited to those with the given prefix. Defaults to the empty string, which matches all files.
-	 * @param {String} [data.delimiter] iles returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders.
+	 * @param {String} [data.delimiter] files returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders.
 	 * @param {Function} [callback]
 	 */
 	listFileVersions(data, callback){
@@ -633,6 +723,230 @@ const b2CloudStorage = class {
 	}
 
 	/**
+	 * Helper function for `b2_copy_file` Creates a new file by copying from an existing file. Limited to 5GB
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.sourceFileId The ID of the source file being copied.
+	 * @param {String} data.fileName The name of the new file being created.
+	 * @param {String} [data.destinationBucketId] The ID of the bucket where the copied file will be stored. Uses original file bucket when unset.
+	 * @param {Object} [data.range] The range of bytes to copy. If not provided, the whole source file will be copied.
+	 * @param {String} [data.metadataDirective] The strategy for how to populate metadata for the new file.
+	 * @param {String} [data.contentType] Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file.
+	 * @param {Object} [data.fileInfo] Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file.
+	 * @param {Function} [callback]
+	 * @returns {object} Returns an object with 1 helper method: `cancel()`
+	 */
+	copySmallFile(data, callback){
+		const req = this.request({
+			url: 'b2_copy_file',
+			method: 'POST',
+			json: data
+		}, callback);
+
+		// If we had a progress and info we could return those as well
+		return {
+			cancel: function(){
+				req.abort();
+			}
+		};
+	}
+
+	/**
+	 * Helper function for `b2_copy_file` Creates a new file by copying from an existing file. Limited to 5GB
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.sourceFileId The ID of the source file being copied.
+	 * @param {String} data.fileName The name of the new file being created.
+	 * @param {String} data.destinationBucketId The ID of the bucket where the copied file will be stored. Uses original file bucket when unset.
+	 * @param {String} data.contentType Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file.
+	 * @param {Number} data.size Content size of target large file
+	 * @param {String} data.hash sha1 hash for the target large file
+	 * @param {Function} [data.onUploadProgress] Callback function on progress of entire copy
+	 * @param {Number} [data.progressInterval] How frequently the `onUploadProgress` callback is fired during upload
+	 * @param {Number} [data.partSize] Overwrite the default part size as defined by the b2 authorization process
+	 * @param {Object} [data.fileInfo] Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file.
+	 * @param {Function} [callback]
+	 */
+	copyLargeFile(data, callback){
+		const self = this;
+		const info = {totalErrors: 0};
+
+		let interval = null;
+		async.series([
+			function(cb){
+				self.request({
+					url: 'b2_start_large_file',
+					method: 'POST',
+					json: {
+						bucketId: data.destinationBucketId,
+						fileName: data.fileName,
+						contentType: data.contentType,
+						fileInfo: _.defaults(data.fileInfo, {
+							large_file_sha1: data.hash,
+							hash_sha1: data.hash,
+							src_last_modified_millis: String(new Date().getTime())
+						})
+					}
+				}, (err, results) => {
+					if(err){ return cb(err); }
+					info.fileId = results.fileId;
+					return cb();
+				});
+			},
+			function(cb){
+				// todo: maybe tweak recommendedPartSize if the total number of chunks exceeds the total backblaze limit (10000)
+				const partSize = data.partSize || self.authData.recommendedPartSize;
+
+				// track the current chunk
+				const fsOptions = {
+					attempts: 1,
+					part: 1,
+					start: 0,
+					size: partSize,
+					end: partSize - 1,
+					bytesDispatched: 0
+				};
+				info.chunks = [];
+				info.lastPart = 1;
+				// create array with calculated number of chunks (floored)
+				const pushChunks = Array(Math.floor(data.size / partSize));
+				_.each(pushChunks, function(){
+					info.chunks.push(_.clone(fsOptions));
+					fsOptions.part++;
+					fsOptions.start += partSize;
+					fsOptions.end += partSize;
+				});
+				// calculate remainder left (less than single chunk)
+				const remainder = data.size % partSize;
+				if(remainder > 0){
+					const item = _.clone(fsOptions);
+					item.end = data.size;
+					item.size = remainder;
+					info.chunks.push(item);
+				}
+				info.lastPart = fsOptions.part;
+
+				return process.nextTick(cb);
+			},
+			function(cb){
+				info.shaParts = {};
+				info.totalCopied = 0;
+
+				const reQueue = function(task, incrementCount = true){
+					if(incrementCount){
+						task.attempts++;
+					}
+					queue.push(task);
+				};
+				let queue = async.queue(function(task, queueCB){
+					// if the queue has already errored, just callback immediately
+					if(info.error){
+						return process.nextTick(queueCB);
+					}
+					self.request({
+						url: 'b2_copy_part',
+						method: 'POST',
+						json: {
+							sourceFileId: data.sourceFileId,
+							largeFileId: info.fileId,
+							partNumber: task.part,
+							range: `bytes=${task.start}-${task.end}`
+						}
+					}, function(err, results){
+						if(err){
+							// if upload fails, error if exceeded max attempts, else requeue
+							if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors){
+								info.error = err;
+								return queueCB(err);
+							}
+							info.totalErrors++;
+							reQueue(task);
+							return queueCB();
+						}
+						info.shaParts[task.part] = results.contentSha1;
+						info.totalCopied += results.contentLength;
+						return queueCB();
+					});
+				}, self.maxCopyWorkers);
+
+				// callback when queue has completed
+				queue.drain(function(){
+					clearInterval(interval);
+					if(info.error){
+						return cb();
+					}
+					info.partSha1Array = [];
+					let i = 1;
+					while(i <= info.lastPart){
+						info.partSha1Array.push(info.shaParts[i++]);
+					}
+					return cb();
+				});
+				interval = setInterval(function(){
+					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function'){
+						return;
+					}
+					const percent = Math.floor((info.totalCopied / data.size) * 100);
+					return data.onUploadProgress({
+						percent: percent,
+						bytesCopied: info.totalCopied,
+						bytesTotal: data.size
+					});
+				}, data.progressInterval || 250);
+
+				queue.push(info.chunks);
+			},
+			function(cb){
+				if(interval){ clearInterval(interval); }
+
+				// cleanup large file upload if error occurred
+				if(!info.error){ return cb(); }
+
+				return self.request({
+					url: 'b2_cancel_large_file',
+					method: 'POST',
+					json: {
+						fileId: info.fileId
+					}
+				}, cb);
+			},
+			function(cb){
+				if(info.error){ return cb(info.error); }
+				self.request({
+					url: 'b2_finish_large_file',
+					method: 'POST',
+					json: {
+						fileId: info.fileId,
+						partSha1Array: info.partSha1Array
+					}
+				}, function(err, results){
+					if(err){ return cb(err); }
+					info.returnData = results;
+					return cb();
+				});
+			}
+		], function(err){
+			if(interval){ clearInterval(interval); }
+			if(err || info.error){ return callback(err || info.error); }
+			return callback(null, info.returnData);
+		});
+
+		return {
+			cancel: function(){
+				info.error = new Error('B2 upload canceled');
+				// TODO: cancel all concurrent copy part requests
+			},
+			progress: function(){
+				return info.progress;
+			},
+			info: function(){
+				if(info.returnData){
+					return info.returnData;
+				}
+				return {fileId: info.fileId};
+			}
+		};
+	}
+
+	/**
 	 * Helper method: Uploads a small file as a single part
 	 * @private
 	 * @param {String} filename Path to filename for upload.
@@ -698,7 +1012,7 @@ const b2CloudStorage = class {
 					clearInterval(interval);
 				}).on('abort', () => {
 					clearInterval(interval);
-					return callback(new Error('B2 upload cancelled'));
+					return callback(new Error('B2 upload canceled'));
 				});
 				interval = setInterval(function(){
 					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function'){
@@ -917,7 +1231,7 @@ const b2CloudStorage = class {
 				}, _.size(info.upload_urls));
 
 				// callback when queue has completed
-				queue.drain = function(){
+				queue.drain(function(){
 					clearInterval(interval);
 					if(info.error){
 						return cb();
@@ -928,7 +1242,7 @@ const b2CloudStorage = class {
 						info.partSha1Array.push(info.shaParts[i++]);
 					}
 					return cb();
-				};
+				});
 				interval = setInterval(function(){
 					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function'){
 						return;
@@ -987,7 +1301,7 @@ const b2CloudStorage = class {
 		});
 		return {
 			cancel: function(){
-				info.error = new Error('B2 upload cancelled');
+				info.error = new Error('B2 upload canceled');
 				_.each(info.upload_urls, function(url){
 					if(url.request && url.request.abort){
 						url.request.abort();

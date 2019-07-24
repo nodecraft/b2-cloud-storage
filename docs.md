@@ -13,8 +13,8 @@ Backblaze B2 Cloud Storage class to handle stream-based uploads and all other AP
     * [.listUnfinishedLargeFiles(data, [callback])](#b2CloudStorage+listUnfinishedLargeFiles)
     * [.getFileInfo(fileId, [callback])](#b2CloudStorage+getFileInfo)
     * [.listBuckets([data], [callback])](#b2CloudStorage+listBuckets)
-    * [.copyFile(data, [callback])](#b2CloudStorage+copyFile)
     * [.copyFilePart(data, [callback])](#b2CloudStorage+copyFilePart)
+    * [.copyFile(data, [callback])](#b2CloudStorage+copyFile) ⇒ <code>object</code>
     * [.createBucket(data, [callback])](#b2CloudStorage+createBucket)
     * [.updateBucket(data, [callback])](#b2CloudStorage+updateBucket)
     * [.deleteBucket(data, [callback])](#b2CloudStorage+deleteBucket)
@@ -29,6 +29,8 @@ Backblaze B2 Cloud Storage class to handle stream-based uploads and all other AP
     * [.getDownloadAuthorization(data, [callback])](#b2CloudStorage+getDownloadAuthorization)
     * [.hideFile(data, [callback])](#b2CloudStorage+hideFile)
     * [.request(data, callback)](#b2CloudStorage+request)
+    * [.copySmallFile(data, [callback])](#b2CloudStorage+copySmallFile) ⇒ <code>object</code>
+    * [.copyLargeFile(data, [callback])](#b2CloudStorage+copyLargeFile)
 
 <a name="new_b2CloudStorage_new"></a>
 
@@ -76,6 +78,8 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | data.fileName | <code>String</code> | The object keyname that is being uploaded. |
 | data.contentType | <code>String</code> | Content/mimetype required for file download. |
 | [data.onUploadProgress] | <code>function</code> | Callback function on progress of entire upload |
+| [data.progressInterval] | <code>Number</code> | How frequently the `onUploadProgress` callback is fired during upload |
+| [data.partSize] | <code>Number</code> | Overwrite the default part size as defined by the b2 authorization process |
 | [data.info] | <code>Object</code> | File info metadata for the file. |
 | [data.hash] | <code>String</code> | Skips the sha1 hash step with hash already provided. |
 | [callback] | <code>function</code> |  |
@@ -138,25 +142,6 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | [data.bucketTypes] | <code>Array</code> | One of: "allPublic", "allPrivate", "snapshot", or other values added in the future. "allPublic" means that anybody can download the files is the bucket; "allPrivate" means that you need an authorization token to download them; "snapshot" means that it's a private bucket containing snapshots created on the B2 web site. |
 | [callback] | <code>function</code> |  |
 
-<a name="b2CloudStorage+copyFile"></a>
-
-### b2CloudStorage.copyFile(data, [callback])
-`b2_copy_file` Creates a new file by copying from an existing file.
-
-**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| data | <code>Object</code> | Message Body Parameters |
-| data.sourceFileId | <code>String</code> | The ID of the source file being copied. |
-| data.fileName | <code>String</code> | The name of the new file being created. |
-| [data.destinationBucketId] | <code>String</code> | The ID of the bucket where the copied file will be stored. Uses original file bucket when unset. |
-| [data.range] | <code>Object</code> | The range of bytes to copy. If not provided, the whole source file will be copied. |
-| [data.metadataDirective] | <code>Array</code> | The strategy for how to populate metadata for the new file. |
-| [data.contentType] | <code>Array</code> | Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file. |
-| [data.fileInfo] | <code>Array</code> | Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file. |
-| [callback] | <code>function</code> |  |
-
 <a name="b2CloudStorage+copyFilePart"></a>
 
 ### b2CloudStorage.copyFilePart(data, [callback])
@@ -171,6 +156,30 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | data.largeFileId | <code>String</code> | The ID of the large file the part will belong to, as returned by b2_start_large_file. |
 | [data.partNumber] | <code>String</code> | A number from 1 to 10000. The parts uploaded for one file must have contiguous numbers, starting with 1. |
 | [data.range] | <code>Object</code> | The range of bytes to copy. If not provided, the whole source file will be copied. |
+| [callback] | <code>function</code> |  |
+
+<a name="b2CloudStorage+copyFile"></a>
+
+### b2CloudStorage.copyFile(data, [callback]) ⇒ <code>object</code>
+Copies a any size file using either `b2_copy_file` or `b2_copy_part` method automatically.
+
+**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
+**Returns**: <code>object</code> - Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Object</code> | Message Body Parameters |
+| data.sourceFileId | <code>String</code> | The ID of the source file being copied. |
+| data.fileName | <code>String</code> | The name of the new file being created. |
+| [data.size] | <code>Number</code> | Size of the file. If not specified will be looked up with an extra class C API call to `b2_get_file_info`. |
+| [data.destinationBucketId] | <code>String</code> | The ID of the bucket where the copied file will be stored. Uses original file bucket when unset. |
+| [data.range] | <code>String</code> | The range of bytes to copy. If not provided, the whole source file will be copied. |
+| [data.metadataDirective] | <code>String</code> | The strategy for how to populate metadata for the new file. |
+| [data.contentType] | <code>String</code> | Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file. |
+| [data.onUploadProgress] | <code>function</code> | Callback function on progress of entire copy |
+| [data.progressInterval] | <code>Number</code> | How frequently the `onUploadProgress` callback is fired during upload |
+| [data.partSize] | <code>Number</code> | Overwrite the default part size as defined by the b2 authorization process |
+| [data.fileInfo] | <code>Object</code> | Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file. |
 | [callback] | <code>function</code> |  |
 
 <a name="b2CloudStorage+createBucket"></a>
@@ -238,7 +247,7 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | [data.startFileName] | <code>String</code> | The first file name to return. If there is a file with this name, it will be returned in the list. If not, the first file name after this the first one after this name. |
 | [data.maxFileCount] | <code>Number</code> | The maximum number of files to return from this call. The default value is 100, and the maximum is 10000. Passing in 0 means to use the default of 100. |
 | [data.prefix] | <code>String</code> | Files returned will be limited to those with the given prefix. Defaults to the empty string, which matches all files. |
-| [data.delimiter] | <code>String</code> | iles returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders. |
+| [data.delimiter] | <code>String</code> | files returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders. |
 | [callback] | <code>function</code> |  |
 
 <a name="b2CloudStorage+listFileVersions"></a>
@@ -256,7 +265,7 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | [data.startFileId] | <code>Number</code> | The first file ID to return. startFileName must also be provided if startFileId is specified. |
 | [data.maxFileCount] | <code>Number</code> | The maximum number of files to return from this call. The default value is 100, and the maximum is 10000. Passing in 0 means to use the default of 100. |
 | [data.prefix] | <code>String</code> | Files returned will be limited to those with the given prefix. Defaults to the empty string, which matches all files. |
-| [data.delimiter] | <code>String</code> | iles returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders. |
+| [data.delimiter] | <code>String</code> | files returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders. |
 | [callback] | <code>function</code> |  |
 
 <a name="b2CloudStorage+listKeys"></a>
@@ -394,4 +403,46 @@ Helper method: Request wrapper used to call Backblaze B2 API. All class methods 
 | data.appendPath | <code>boolean</code> | (internal) When set to false will prevent extra URI and hostname changes. Most useful when combined with `apiUrl` |
 | data.apiUrl | <code>boolean</code> | (internal) Full URL path or hostname to replace. Most useful when combined with `appendPath`. |
 | callback | <code>function</code> | [description] |
+
+<a name="b2CloudStorage+copySmallFile"></a>
+
+### b2CloudStorage.copySmallFile(data, [callback]) ⇒ <code>object</code>
+Helper function for `b2_copy_file` Creates a new file by copying from an existing file. Limited to 5GB
+
+**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
+**Returns**: <code>object</code> - Returns an object with 1 helper method: `cancel()`  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Object</code> | Message Body Parameters |
+| data.sourceFileId | <code>String</code> | The ID of the source file being copied. |
+| data.fileName | <code>String</code> | The name of the new file being created. |
+| [data.destinationBucketId] | <code>String</code> | The ID of the bucket where the copied file will be stored. Uses original file bucket when unset. |
+| [data.range] | <code>Object</code> | The range of bytes to copy. If not provided, the whole source file will be copied. |
+| [data.metadataDirective] | <code>String</code> | The strategy for how to populate metadata for the new file. |
+| [data.contentType] | <code>String</code> | Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file. |
+| [data.fileInfo] | <code>Object</code> | Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file. |
+| [callback] | <code>function</code> |  |
+
+<a name="b2CloudStorage+copyLargeFile"></a>
+
+### b2CloudStorage.copyLargeFile(data, [callback])
+Helper function for `b2_copy_file` Creates a new file by copying from an existing file. Limited to 5GB
+
+**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Object</code> | Message Body Parameters |
+| data.sourceFileId | <code>String</code> | The ID of the source file being copied. |
+| data.fileName | <code>String</code> | The name of the new file being created. |
+| data.destinationBucketId | <code>String</code> | The ID of the bucket where the copied file will be stored. Uses original file bucket when unset. |
+| data.contentType | <code>String</code> | Must only be supplied if the metadataDirective is REPLACE. The MIME type of the content of the file, which will be returned in the Content-Type header when downloading the file. |
+| data.size | <code>Number</code> | Content size of target large file |
+| data.hash | <code>String</code> | sha1 hash for the target large file |
+| [data.onUploadProgress] | <code>function</code> | Callback function on progress of entire copy |
+| [data.progressInterval] | <code>Number</code> | How frequently the `onUploadProgress` callback is fired during upload |
+| [data.partSize] | <code>Number</code> | Overwrite the default part size as defined by the b2 authorization process |
+| [data.fileInfo] | <code>Object</code> | Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file. |
+| [callback] | <code>function</code> |  |
 
