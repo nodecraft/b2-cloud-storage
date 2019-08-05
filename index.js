@@ -92,7 +92,10 @@ const b2CloudStorage = class {
 	 * @param {String} data.bucketId The target bucket the file is to be uploaded.
 	 * @param {String} data.fileName The object keyname that is being uploaded.
 	 * @param {String} data.contentType Content/mimetype required for file download.
+	 * @param {String} [data.largeFileId] The ID of a large File to resume uploading
+	 * @param {String} [data.ignoreFileIdError] When `true` and data.largeFileId is set, the upload will always proceed, even if the given fileId is invalid/old/wrong with a new fileId
 	 * @param {Function} [data.onUploadProgress] Callback function on progress of entire upload
+	 * @param {Function} [data.onFileId] Callback function when a fileId is assigned. Triggers at the end of a small file upload. Triggers before the upload of a large file.
 	 * @param {Number} [data.progressInterval] How frequently the `onUploadProgress` callback is fired during upload
 	 * @param {Number} [data.partSize] Overwrite the default part size as defined by the b2 authorization process
 	 * @param {Object} [data.info] File info metadata for the file.
@@ -1005,6 +1008,9 @@ const b2CloudStorage = class {
 						return callback(err);
 					}
 					info.returnData = results;
+					if(data.onFileId && typeof(data.onFileId) === 'function'){
+						data.onFileId(results.fileId);
+					}
 					return callback(null, results);
 				}).on('end', () => {
 					clearInterval(interval);
@@ -1059,7 +1065,16 @@ const b2CloudStorage = class {
 	 */
 	uploadFileLarge(filename, data, callback = function(){}){
 		const self = this;
-		const info = {upload_urls: {}, totalErrors: 0};
+		const info = {
+			upload_urls: {},
+			totalErrors: 0,
+			shaParts: {},
+			resumingUpload: false,
+			uploadedParts: {},
+			lastUploadedPart: 0,
+			lastConsecutivePart: 0,
+			missingPartSize: 0
+		};
 		// TODO: handle update callbacks
 
 		data.limit = data.limit || 4; // todo: calculate / dynamic or something
@@ -1067,6 +1082,140 @@ const b2CloudStorage = class {
 		let interval = null;
 		async.series([
 			function(cb){
+				if(!data.largeFileId){ return cb(); }
+				// resuming a file upload
+				let startPartNumber = 0,
+					parts = {},
+					validFileId = false;
+				async.whilst(function(wcb){
+					return wcb(null, startPartNumber !== null);
+				}, function(wcb){
+					const partsData = {
+						fileId: data.largeFileId,
+						maxPartCount: 1000
+					};
+					if(startPartNumber){
+						partsData.startPartNumber = startPartNumber;
+					}
+					self.listParts(partsData, function(err, results){
+						if(err){
+							// failed to find the fileId or invalid fileId
+							if(results.status === 400 && data.ignoreFileIdError){
+								startPartNumber = null;
+								return wcb();
+							}
+							return wcb(err);
+						}
+						validFileId = true;
+						startPartNumber = results.nextPartNumber; // will return null or the next number
+						let partTrack = 1;
+						_.each(results.parts, function(part){
+							if(info.lastUploadedPart < part.partNumber){
+								info.lastUploadedPart = part.partNumber;
+							}
+							if(partTrack !== part.partNumber){ return; } // ignore gaps in upload, TODO: check for order?
+							if(info.lastConsecutivePart < part.partNumber){
+								info.lastConsecutivePart = part.partNumber;
+							}
+							parts[part.partNumber] = part.contentLength;
+							info.shaParts[part.partNumber] = part.contentSha1;
+							partTrack++;
+						});
+						return wcb();
+					});
+				}, function(err){
+					if(err){
+						// TODO detect when invalid file ID, don't error
+						console.log(err);
+						return cb(err);
+					}
+					if(validFileId){
+						info.fileId = data.largeFileId;
+						if(data.onFileId && typeof(data.onFileId) === 'function'){
+							data.onFileId(info.fileId);
+						}
+						info.uploadedParts = parts;
+						info.resumingUpload = true;
+					}
+					return cb();
+				});
+			},
+			function(cb){
+				// check our parts
+				// todo: maybe tweak recommendedPartSize if the total number of chunks exceeds the total backblaze limit (10000)
+				const partSize = data.partSize || self.authData.recommendedPartSize;
+
+				// track the current chunk
+				const partTemplate = {
+					attempts: 1,
+					part: 0,
+					start: 0,
+					size: 0,
+					end: -1
+				};
+				info.chunks = [];
+				info.lastPart = 1;
+				let chunkError = null;
+				while(!chunkError && data.size > partTemplate.end){
+					partTemplate.part++;
+
+					let currentPartSize = partSize; // default to recommended size
+					// check previously uploaded parts
+					if(info.uploadedParts[partTemplate.part]){
+						currentPartSize = info.uploadedParts[partTemplate.part];
+					}
+					// calculates at least how big each chunk has to be to fit into the chunks previously uploaded
+					// we don't know the start/end of those chunks and they MUST be overwritten
+					if(partTemplate.part > info.lastConsecutivePart && partTemplate.part < info.lastUploadedPart){
+						if(!info.missingPartSize){
+							const accountedForParts = partTemplate.end + 1; // last uploaded part
+							info.missingPartSize = Math.ceil((data.size - accountedForParts) / (info.lastUploadedPart - info.lastConsecutivePart));
+							// if this exceeds the recommended size, we can lower the part size and write more chunks after the
+							// higher number of chunks previously uploaded
+							if(info.missingPartSize > partSize){
+								info.missingPartSize = partSize;
+							}
+						}
+						currentPartSize = info.missingPartSize;
+					}
+					if(currentPartSize <= 0){
+						chunkError = new Error('B2 part size cannot be zero');
+						chunkError.chunk = partTemplate;
+						break;
+					}
+
+					partTemplate.end += currentPartSize; // minus 1 to prevent overlapping chunks
+					// check for end of file, adjust part size
+					if(partTemplate.end + 1 >= data.size){
+						// calculate the part size with the remainder
+						// started with -1, so needs to be padded to prevent off by 1 errors
+						currentPartSize = currentPartSize - (partTemplate.end + 1 - data.size);
+						partTemplate.end = data.size;
+					}
+					partTemplate.start += partTemplate.size; // last part size
+					partTemplate.size = currentPartSize;
+					if(partTemplate.part === 1){
+						partTemplate.start = 0;
+					}
+					if(partTemplate.size > partSize){
+						chunkError = new Error('B2 part size overflows maximum recommended chunk to resume upload.');
+						chunkError.chunk = partTemplate;
+						break;
+					}
+					if(info.lastPart < partTemplate.part){
+						info.lastPart = partTemplate.part;
+					}
+					info.chunks.push(_.clone(partTemplate));
+				}
+				return process.nextTick(function(){
+					if(chunkError){
+						return cb(chunkError);
+					}
+					return cb();
+				});
+			},
+			function(cb){
+				if(info.fileId){ return cb(); }
 				let fileInfo = _.defaults({
 					large_file_sha1: data.hash,
 					hash_sha1: data.hash
@@ -1086,6 +1235,9 @@ const b2CloudStorage = class {
 				}, (err, results) => {
 					if(err){ return cb(err); }
 					info.fileId = results.fileId;
+					if(data.onFileId && typeof(data.onFileId) === 'function'){
+						data.onFileId(info.fileId);
+					}
 					return cb();
 				});
 			},
@@ -1109,42 +1261,6 @@ const b2CloudStorage = class {
 				}, cb);
 			},
 			function(cb){
-				// todo: maybe tweak recommendedPartSize if the total number of chunks exceeds the total backblaze limit (10000)
-				const partSize = data.partSize || self.authData.recommendedPartSize;
-
-				// track the current chunk
-				const fsOptions = {
-					attempts: 1,
-					part: 1,
-					start: 0,
-					size: partSize,
-					end: partSize - 1,
-					bytesDispatched: 0
-				};
-				info.chunks = [];
-				info.lastPart = 1;
-				// create array with calculated number of chunks (floored)
-				const pushChunks = Array(Math.floor(data.size / partSize));
-				_.each(pushChunks, function(){
-					info.chunks.push(_.clone(fsOptions));
-					fsOptions.part++;
-					fsOptions.start += partSize;
-					fsOptions.end += partSize;
-				});
-				// calculate remainder left (less than single chunk)
-				const remainder = data.size % partSize;
-				if(remainder > 0){
-					const item = _.clone(fsOptions);
-					item.end = data.size;
-					item.size = remainder;
-					info.chunks.push(item);
-				}
-				info.lastPart = fsOptions.part;
-
-				return process.nextTick(cb);
-			},
-			function(cb){
-				info.shaParts = {};
 				info.totalUploaded = 0;
 
 				const reQueue = function(task, incrementCount = true){
@@ -1158,6 +1274,14 @@ const b2CloudStorage = class {
 					if(info.error){
 						return process.nextTick(queueCB);
 					}
+
+					// check for previously uploaded
+					if(info.uploadedParts[task.part]){
+						// already uploaded
+						info.totalUploaded += task.size;
+						return process.nextTick(queueCB);
+					}
+
 					// get upload url from available and mark it as in-use
 					// re-queue if no url found (shouldn't ever happen)
 					const url = _.find(info.upload_urls, {in_use: false});
@@ -1254,7 +1378,7 @@ const b2CloudStorage = class {
 						}
 						return 0;
 					});
-					bytesDispatched += info.totalUploaded;
+					bytesDispatched = _.clamp(bytesDispatched + info.totalUploaded, data.size);
 					const percent = Math.floor((bytesDispatched / data.size) * 100);
 					return data.onUploadProgress({
 						percent: percent,

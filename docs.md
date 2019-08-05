@@ -77,7 +77,10 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | data.bucketId | <code>String</code> | The target bucket the file is to be uploaded. |
 | data.fileName | <code>String</code> | The object keyname that is being uploaded. |
 | data.contentType | <code>String</code> | Content/mimetype required for file download. |
+| [data.largeFileId] | <code>String</code> | The ID of a large File to resume uploading |
+| [data.ignoreFileIdError] | <code>String</code> | When `true` and data.largeFileId is set, the upload will always proceed, even if the given fileId is invalid/old/wrong with a new fileId |
 | [data.onUploadProgress] | <code>function</code> | Callback function on progress of entire upload |
+| [data.onFileId] | <code>function</code> | Callback function when a fileId is assigned. Triggers at the end of a small file upload. Triggers before the upload of a large file. |
 | [data.progressInterval] | <code>Number</code> | How frequently the `onUploadProgress` callback is fired during upload |
 | [data.partSize] | <code>Number</code> | Overwrite the default part size as defined by the b2 authorization process |
 | [data.info] | <code>Object</code> | File info metadata for the file. |
