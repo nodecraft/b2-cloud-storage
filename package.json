@@ -12,6 +12,10 @@
 		"mocha": "mocha",
 		"test": "npm run lint && npm run mocha"
 	},
+	"files": [
+		"index.js",
+		"docs.md"
+	],
 	"keywords": [
 		"backblaze",
 		"b2-cloud-storage",
