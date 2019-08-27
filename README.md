@@ -52,4 +52,4 @@ You can read the [full documentation here](docs.md).
 
 
 ## License
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage?ref=badge_large)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnodecraft%2Fb2-cloud-storage?ref=badge_large) [![Greenkeeper badge](https://badges.greenkeeper.io/nodecraft/b2-cloud-storage.svg)](https://greenkeeper.io/)
