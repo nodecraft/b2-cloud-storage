@@ -21,7 +21,7 @@ describe('b2_authorize_account', function(){
 			if(err){
 				return done(err);
 			}
-			assert.strictEqual(results.authorizationToken, config.authToken);
+			assert.strictEqual(results.authorizationToken, config.auth.all.authToken);
 			done();
 		});
 	});

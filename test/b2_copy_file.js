@@ -6,28 +6,28 @@ const config = require('./lib/config.js');
 
 require('./lib/mock-server.js'); // mock b2 api server
 
-describe('b2_create_key', function(){
-	it('fails with missing `capabilities', function(done){
+describe('b2_copy_file', function(){
+	it('fails with missing `sourceFileId', function(done){
 		const b2 = new b2CloudStorage({auth: {accountId: config.auth.buckets.accountId, applicationKey: config.auth.buckets.applicationKey}});
 		b2.authorize((err) => {
 			if(err){ return done(err); }
-			b2.createKey({}, function(err){
+			b2.copySmallFile({}, function(err){
 				assert(err instanceof Error);
-				assert.strictEqual(err.message, 'required field capabilities is missing');
+				assert.strictEqual(err.message, 'required field sourceFileId is missing');
 				done();
 			});
 		});
 	});
 
-	it('fails with missing `keyName`', function(done){
+	it('fails with missing `fileName`', function(done){
 		const b2 = new b2CloudStorage({auth: {accountId: config.auth.buckets.accountId, applicationKey: config.auth.buckets.applicationKey}});
 		b2.authorize((err) => {
 			if(err){ return done(err); }
-			b2.createKey({
-				capabilities: config.auth.buckets.capabilities
+			b2.copySmallFile({
+				sourceFileId: config.file.source.fileId
 			}, function(err){
 				assert(err instanceof Error);
-				assert.strictEqual(err.message, 'required field keyName is missing');
+				assert.strictEqual(err.message, 'required field fileName is missing');
 				done();
 			});
 		});
@@ -37,9 +37,9 @@ describe('b2_create_key', function(){
 		const b2 = new b2CloudStorage({auth: {accountId: config.auth.none.accountId, applicationKey: config.auth.none.applicationKey}});
 		b2.authorize((err) => {
 			if(err){ return done(err); }
-			b2.createKey({
-				capabilities: config.auth.none.capabilities,
-				keyName: config.auth.none.keyName
+			b2.copySmallFile({
+				sourceFileId: config.file.source.fileId,
+				fileName: config.file.destination.fileName
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -52,9 +52,9 @@ describe('b2_create_key', function(){
 		const b2 = new b2CloudStorage({auth: {accountId: config.auth.buckets.accountId, applicationKey: config.auth.buckets.applicationKey}});
 		b2.authorize((err) => {
 			if(err){ return done(err); }
-			b2.createKey({
-				capabilities: config.auth.buckets.capabilities,
-				keyName: config.auth.buckets.keyName
+			b2.copySmallFile({
+				sourceFileId: config.file.source.fileId,
+				fileName: config.file.destination.fileName
 			}, done);
 		});
 	});
