@@ -65,7 +65,8 @@ Creates new instance of the b2CloudStorage class.
 <a name="b2CloudStorage+uploadFile"></a>
 
 ### b2CloudStorage.uploadFile(filename, data, [callback]) ⇒ <code>object</code>
-Upload file with `b2_upload_file` or as several parts of a large file upload.This method also will get the filesize & sha1 hash of the entire file.
+Upload file with `b2_upload_file` or as several parts of a large file upload.
+This method also will get the filesize & sha1 hash of the entire file.
 
 **Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
 **Returns**: <code>object</code> - Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`  
@@ -296,7 +297,7 @@ Copies a any size file using either `b2_copy_file` or `b2_copy_part` method auto
 | Param | Type | Description |
 | --- | --- | --- |
 | data | <code>Object</code> | Message Body Parameters. |
-| data.capabilities | <code>Array.&lt;String&gt;</code> | A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`. |
+| data.capabilities | <code>Array</code> | A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`. |
 | data.keyName | <code>String</code> | A name for this key. There is no requirement that the name be unique. The name cannot be used to look up the key. Names can contain letters, numbers, and "-", and are limited to 100 characters. |
 | [data.accountId] | <code>String</code> | The ID of your account. When unset will use the `b2_authorize` results `accountId`. |
 | [data.validDurationInSeconds] | <code>Number</code> | When provided, the key will expire after the given number of seconds, and will have expirationTimestamp set. Value must be a positive integer, and must be less than 1000 days (in seconds). |

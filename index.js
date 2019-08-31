@@ -491,7 +491,7 @@ const b2CloudStorage = class {
 	/**
 	 * `b2_create_key` Creates a new application key.
 	 * @param {Object} data Message Body Parameters.
-	 * @param {String[]} data.capabilities A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`.
+	 * @param {Array} data.capabilities A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`.
 	 * @param {String} data.keyName A name for this key. There is no requirement that the name be unique. The name cannot be used to look up the key. Names can contain letters, numbers, and "-", and are limited to 100 characters.
 	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
 	 * @param {Number} [data.validDurationInSeconds] When provided, the key will expire after the given number of seconds, and will have expirationTimestamp set. Value must be a positive integer, and must be less than 1000 days (in seconds).
