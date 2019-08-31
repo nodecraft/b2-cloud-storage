@@ -24,7 +24,7 @@ describe('b2_hide_file', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.hideFile({
-				bucketId: config.bucketId,
+				bucketId: config.bucketId
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field fileName is missing');

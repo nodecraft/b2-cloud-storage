@@ -157,7 +157,7 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | data | <code>Object</code> | Message Body Parameters |
 | data.sourceFileId | <code>String</code> | The ID of the source file being copied. |
 | data.largeFileId | <code>String</code> | The ID of the large file the part will belong to, as returned by b2_start_large_file. |
-| [data.partNumber] | <code>String</code> | A number from 1 to 10000. The parts uploaded for one file must have contiguous numbers, starting with 1. |
+| data.partNumber | <code>Number</code> | A number from 1 to 10000. The parts uploaded for one file must have contiguous numbers, starting with 1. |
 | [data.range] | <code>Object</code> | The range of bytes to copy. If not provided, the whole source file will be copied. |
 | [callback] | <code>function</code> |  |
 
@@ -282,7 +282,7 @@ Copies a any size file using either `b2_copy_file` or `b2_copy_part` method auto
 | --- | --- | --- |
 | [data] | <code>Object</code> | Message Body Parameters. If a string is provided it will be treated as the `bucketId`. |
 | [data.accountId] | <code>String</code> | The ID of your account. When unset will use the `b2_authorize` results `accountId`. |
-| [data.maxKeyCount] | <code>Number</code> | The ID of your account. When unset will use the `b2_authorize` results `accountId`. |
+| [data.maxKeyCount] | <code>Number</code> | The maximum number of keys to return in the response. Default is 100, maximum is 10000. |
 | [data.startApplicationKeyId] | <code>String</code> | The first key to return. Used when a query hits the maxKeyCount, and you want to get more. Set to the value returned as the nextApplicationKeyId in the previous query. |
 | [callback] | <code>function</code> |  |
 
@@ -296,8 +296,8 @@ Copies a any size file using either `b2_copy_file` or `b2_copy_part` method auto
 | Param | Type | Description |
 | --- | --- | --- |
 | data | <code>Object</code> | Message Body Parameters. |
-| data.capabilities | <code>Number</code> | A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`. |
-| data.keyName | <code>Number</code> | A name for this key. There is no requirement that the name be unique. The name cannot be used to look up the key. Names can contain letters, numbers, and "-", and are limited to 100 characters. |
+| data.capabilities | <code>Array.&lt;String&gt;</code> | A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`. |
+| data.keyName | <code>String</code> | A name for this key. There is no requirement that the name be unique. The name cannot be used to look up the key. Names can contain letters, numbers, and "-", and are limited to 100 characters. |
 | [data.accountId] | <code>String</code> | The ID of your account. When unset will use the `b2_authorize` results `accountId`. |
 | [data.validDurationInSeconds] | <code>Number</code> | When provided, the key will expire after the given number of seconds, and will have expirationTimestamp set. Value must be a positive integer, and must be less than 1000 days (in seconds). |
 | [data.bucketId] | <code>String</code> | When present, the new key can only access this bucket. When set, only these capabilities can be specified: `listBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`. |
@@ -340,9 +340,10 @@ Copies a any size file using either `b2_copy_file` or `b2_copy_part` method auto
 | Param | Type | Description |
 | --- | --- | --- |
 | data | <code>Object</code> | Request Details |
-| data.Authorization | <code>String</code> | An account authorization token. |
-| data.Range | <code>String</code> | A standard byte-range request, which will return just part of the stored file. |
-| data.b2ContentDisposition | <code>String</code> | If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded. |
+| data.fileId | <code>String</code> | Request Details |
+| [data.Authorization] | <code>String</code> | An account authorization token. |
+| [data.Range] | <code>String</code> | A standard byte-range request, which will return just part of the stored file. |
+| [data.b2ContentDisposition] | <code>String</code> | If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded. |
 | [callback] | <code>function</code> |  |
 
 <a name="b2CloudStorage+downloadFileByName"></a>
