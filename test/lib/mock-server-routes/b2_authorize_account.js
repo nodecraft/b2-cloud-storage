@@ -25,7 +25,7 @@ module.exports = function(mocks, config){
 						namePrefix: null
 					},
 					apiUrl: 'https://api001.backblazeb2.com',
-					authorizationToken: config.authToken,
+					authorizationToken: config.auth[authType].authToken,
 					downloadUrl: 'https://f001.backblazeb2.com',
 					recommendedPartSize: 100000000
 				}

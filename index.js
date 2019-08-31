@@ -250,7 +250,7 @@ const b2CloudStorage = class {
 	 * @param {Object} data Message Body Parameters
 	 * @param {String} data.sourceFileId The ID of the source file being copied.
 	 * @param {String} data.largeFileId The ID of the large file the part will belong to, as returned by b2_start_large_file.
-	 * @param {String} [data.partNumber] A number from 1 to 10000. The parts uploaded for one file must have contiguous numbers, starting with 1.
+	 * @param {Number} data.partNumber A number from 1 to 10000. The parts uploaded for one file must have contiguous numbers, starting with 1.
 	 * @param {Object} [data.range] The range of bytes to copy. If not provided, the whole source file will be copied.
 	 * @param {Function} [callback]
 	 */
@@ -469,7 +469,7 @@ const b2CloudStorage = class {
 	 * `b2_list_keys` Lists application keys associated with an account.
 	 * @param {Object} [data] Message Body Parameters. If a string is provided it will be treated as the `bucketId`.
 	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
-	 * @param {Number} [data.maxKeyCount] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
+	 * @param {Number} [data.maxKeyCount] The maximum number of keys to return in the response. Default is 100, maximum is 10000.
 	 * @param {String} [data.startApplicationKeyId] The first key to return. Used when a query hits the maxKeyCount, and you want to get more. Set to the value returned as the nextApplicationKeyId in the previous query.
 	 * @param {Function} [callback]
 	 */
@@ -491,8 +491,8 @@ const b2CloudStorage = class {
 	/**
 	 * `b2_create_key` Creates a new application key.
 	 * @param {Object} data Message Body Parameters.
-	 * @param {Number} data.capabilities A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`.
-	 * @param {Number} data.keyName A name for this key. There is no requirement that the name be unique. The name cannot be used to look up the key. Names can contain letters, numbers, and "-", and are limited to 100 characters.
+	 * @param {Array} data.capabilities A list of strings, each one naming a capability the new key should have. Possibilities are: `listKeys`, `writeKeys`, `deleteKeys`, `listBuckets`, `writeBuckets`, `deleteBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`.
+	 * @param {String} data.keyName A name for this key. There is no requirement that the name be unique. The name cannot be used to look up the key. Names can contain letters, numbers, and "-", and are limited to 100 characters.
 	 * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
 	 * @param {Number} [data.validDurationInSeconds] When provided, the key will expire after the given number of seconds, and will have expirationTimestamp set. Value must be a positive integer, and must be less than 1000 days (in seconds).
 	 * @param {String} [data.bucketId] When present, the new key can only access this bucket. When set, only these capabilities can be specified: `listBuckets`, `listFiles`, `readFiles`, `shareFiles`, `writeFiles`, and `deleteFiles`.
@@ -547,9 +547,10 @@ const b2CloudStorage = class {
 	/**
 	 * `b2_download_file_by_id` Downloads one file from B2.
 	 * @param {Object} data Request Details
-	 * @param {String} data.Authorization An account authorization token.
-	 * @param {String} data.Range A standard byte-range request, which will return just part of the stored file.
-	 * @param {String} data.b2ContentDisposition If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded.
+	 * @param {String} data.fileId Request Details
+	 * @param {String} [data.Authorization] An account authorization token.
+	 * @param {String} [data.Range] A standard byte-range request, which will return just part of the stored file.
+	 * @param {String} [data.b2ContentDisposition] If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded.
 	 * @param {Function} [callback]
 	 */
 	downloadFileById(data, callback){
