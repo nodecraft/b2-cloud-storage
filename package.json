@@ -49,6 +49,6 @@
 		"eslint-plugin-node": "^9.1.0",
 		"jsdoc-to-markdown": "^5.0.0",
 		"mocha": "^6.2.0",
-		"nock": "^10.0.6"
+		"nock": "^11.3.3"
 	}
 }
