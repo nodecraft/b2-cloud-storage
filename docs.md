@@ -357,11 +357,11 @@ Copies a any size file using either `b2_copy_file` or `b2_copy_part` method auto
 | Param | Type | Description |
 | --- | --- | --- |
 | data | <code>Object</code> | Request HTTP Headers |
-| data.downloadUrl | <code>String</code> | Download hostname URL. |
 | data.bucket | <code>String</code> | Bucket name. |
 | data.fileName | <code>String</code> | file name. |
 | [data.Authorization] | <code>String</code> | An account authorization token. |
 | [data.Range] | <code>String</code> | A standard byte-range request, which will return just part of the stored file. |
+| [data.b2ContentDisposition] | <code>String</code> | If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded. |
 | [callback] | <code>function</code> |  |
 
 <a name="b2CloudStorage+getDownloadAuthorization"></a>

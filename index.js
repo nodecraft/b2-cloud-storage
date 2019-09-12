@@ -80,6 +80,7 @@ const b2CloudStorage = class {
 			}
 			this.authData = results;
 			this.url = results.apiUrl;
+			this.downloadUrl = results.downloadUrl;
 			return callback(null, results);
 		});
 	}
@@ -558,29 +559,42 @@ const b2CloudStorage = class {
 			callback = data;
 			data = {};
 		}
-		return this.request({
+
+		const requestData = {
+			apiUrl: this.downloadUrl,
 			url: 'b2_download_file_by_id',
-			method: 'GET',
-			qs: data
-		}, callback);
+			json: false,
+			headers: {},
+			qs: {fileId: data.fileId}
+		};
+		if(data.Authorization){
+			requestData.headers.Authorization = data.Authorization;
+		}
+		if(data.Range){
+			requestData.headers.Range = data.Range;
+		}
+		if(data.b2ContentDisposition){
+			requestData.headers.b2ContentDisposition = data.b2ContentDisposition;
+		}
+		return this.request(requestData, callback);
 	}
 	// todo: greatly improve authorization magic
 
 	/**
 	 * `b2_download_file_by_name` Downloads one file by providing the name of the bucket and the name of the file.
 	 * @param {Object} data Request HTTP Headers
-	 * @param {String} data.downloadUrl Download hostname URL.
 	 * @param {String} data.bucket Bucket name.
 	 * @param {String} data.fileName file name.
 	 * @param {String} [data.Authorization] An account authorization token.
 	 * @param {String} [data.Range] A standard byte-range request, which will return just part of the stored file.
+	 * @param {String} [data.b2ContentDisposition] If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded.
 	 * @param {Function} [callback]
 	 */
 	downloadFileByName(data, callback){
 		const requestData = {
-			url: `${data.downloadUrl}/file/${data.bucket}/${data.fileName}`,
-			method: 'GET',
+			apiUrl: `${this.downloadUrl}/file/${data.bucket}/${data.fileName}`,
 			json: false,
+			appendPath: false,
 			headers: {}
 		};
 		if(data.Authorization){
@@ -588,6 +602,9 @@ const b2CloudStorage = class {
 		}
 		if(data.Range){
 			requestData.headers.Range = data.Range;
+		}
+		if(data.b2ContentDisposition){
+			requestData.headers.b2ContentDisposition = data.b2ContentDisposition;
 		}
 		return this.request(requestData, callback);
 	}
