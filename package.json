@@ -1,7 +1,28 @@
 {
 	"name": "b2-cloud-storage",
-	"version": "0.0.9",
+	"version": "0.0.10",
 	"description": "Backblaze B2 Cloud Storage API Client",
+	"keywords": [
+		"b2",
+		"b2-cloud",
+		"b2-cloud-storage",
+		"backblaze",
+		"upload"
+	],
+	"homepage": "https://github.com/nodecraft/b2-cloud-storage#readme",
+	"bugs": {
+		"url": "https://github.com/nodecraft/b2-cloud-storage/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/nodecraft/b2-cloud-storage.git"
+	},
+	"license": "MIT",
+	"author": "Nodecraft Inc.",
+	"files": [
+		"index.js",
+		"docs.md"
+	],
 	"main": "index.js",
 	"scripts": {
 		"coverage": "nyc report --reporter=lcov",
@@ -13,35 +34,10 @@
 		"mocha": "nyc mocha",
 		"test": "npm run lint && npm run mocha"
 	},
-	"files": [
-		"index.js",
-		"docs.md"
-	],
-	"keywords": [
-		"backblaze",
-		"b2-cloud-storage",
-		"b2-cloud",
-		"b2",
-		"upload"
-	],
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/nodecraft/b2-cloud-storage.git"
-	},
-	"bugs": {
-		"url": "https://github.com/nodecraft/b2-cloud-storage/issues"
-	},
-	"homepage": "https://github.com/nodecraft/b2-cloud-storage#readme",
-	"author": "Nodecraft Inc.",
-	"license": "MIT",
 	"dependencies": {
 		"async": "^3.1.0",
 		"lodash": "^4.17.15",
 		"request": "^2.88.0"
-	},
-	"engines": {
-		"node": ">=8",
-		"npm": ">=6.4.1"
 	},
 	"devDependencies": {
 		"eslint": "^6.5.1",
@@ -52,5 +48,9 @@
 		"mocha": "^6.2.1",
 		"nock": "^11.3.5",
 		"nyc": "14.1.1"
+	},
+	"engines": {
+		"node": ">=8",
+		"npm": ">=6.4.1"
 	}
 }

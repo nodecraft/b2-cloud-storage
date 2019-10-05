@@ -65,8 +65,7 @@ Creates new instance of the b2CloudStorage class.
 <a name="b2CloudStorage+uploadFile"></a>
 
 ### b2CloudStorage.uploadFile(filename, data, [callback]) ⇒ <code>object</code>
-Upload file with `b2_upload_file` or as several parts of a large file upload.
-This method also will get the filesize & sha1 hash of the entire file.
+Upload file with `b2_upload_file` or as several parts of a large file upload.This method also will get the filesize & sha1 hash of the entire file.
 
 **Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
 **Returns**: <code>object</code> - Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`  
