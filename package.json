@@ -4,12 +4,13 @@
 	"description": "Backblaze B2 Cloud Storage API Client",
 	"main": "index.js",
 	"scripts": {
+		"coverage": "nyc report --reporter=lcov",
 		"docs": "jsdoc2md index.js > docs.md",
 		"lint": "npm run lint:js && npm run lint:json",
 		"lint:js": "eslint \"**/*.js\"",
 		"lint:js:fix": "eslint \"**/*.js\" --fix",
 		"lint:json": "eslint \"**/*.json\"",
-		"mocha": "mocha",
+		"mocha": "nyc mocha",
 		"test": "npm run lint && npm run mocha"
 	},
 	"files": [
@@ -43,12 +44,13 @@
 		"npm": ">=6.4.1"
 	},
 	"devDependencies": {
-		"eslint": "^6.1.0",
-		"eslint-config-nodecraft": "^1.7.1",
+		"eslint": "^6.5.1",
+		"eslint-config-nodecraft": "^1.7.3",
 		"eslint-plugin-json": "^1.4.0",
 		"eslint-plugin-node": "^10.0.0",
-		"jsdoc-to-markdown": "^5.0.0",
-		"mocha": "^6.2.0",
-		"nock": "^11.3.3"
+		"jsdoc-to-markdown": "^5.0.1",
+		"mocha": "^6.2.1",
+		"nock": "^11.3.5",
+		"nyc": "14.1.1"
 	}
 }
