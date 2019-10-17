@@ -207,6 +207,20 @@ const b2CloudStorage = class {
 	}
 
 	/**
+	 * `b2_delete_unfinished_large_file` Cancels the upload of a large file, and deletes all of the parts that have been uploaded.
+	 * @param {Object} data Message Body Parameters
+	 * @param {String} data.fileId The ID returned by b2_start_large_file.
+	 * @param {Function} [callback]
+	 */
+	cancelLargeFile(data, callback) {
+	    return this.request({
+	        url: 'b2_cancel_large_file',
+	        method: 'POST',
+	        json: data
+	    }, callback);
+	}
+	
+	/**
 	 * `b2_get_file_info` Gets information about one file stored in B2.
 	 * @param {String} fileId The ID of the file, as returned by `b2_upload_file`, `b2_hide_file`, `b2_list_file_names`, or `b2_list_file_versions`.
 	 * @param {Function} [callback]
