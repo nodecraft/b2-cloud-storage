@@ -42,7 +42,7 @@
 	"devDependencies": {
 		"eslint": "^6.5.1",
 		"eslint-config-nodecraft": "^1.7.3",
-		"eslint-plugin-json": "^1.4.0",
+		"eslint-plugin-json": "^2.0.0",
 		"eslint-plugin-node": "^10.0.0",
 		"jsdoc-to-markdown": "^5.0.1",
 		"mocha": "^6.2.1",
