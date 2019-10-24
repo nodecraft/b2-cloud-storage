@@ -1,6 +1,6 @@
 {
 	"name": "b2-cloud-storage",
-	"version": "0.0.10",
+	"version": "0.0.11",
 	"description": "Backblaze B2 Cloud Storage API Client",
 	"keywords": [
 		"b2",
@@ -41,12 +41,12 @@
 	},
 	"devDependencies": {
 		"eslint": "^6.5.1",
-		"eslint-config-nodecraft": "^1.7.3",
-		"eslint-plugin-json": "^2.0.0",
+		"eslint-config-nodecraft": "^1.7.5",
+		"eslint-plugin-json": "^2.0.1",
 		"eslint-plugin-node": "^10.0.0",
-		"jsdoc-to-markdown": "^5.0.1",
-		"mocha": "^6.2.1",
-		"nock": "^11.3.5",
+		"jsdoc-to-markdown": "^5.0.2",
+		"mocha": "^6.2.2",
+		"nock": "^11.6.0",
 		"nyc": "14.1.1"
 	},
 	"engines": {
