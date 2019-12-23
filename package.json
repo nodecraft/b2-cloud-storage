@@ -47,7 +47,7 @@
 		"jsdoc-to-markdown": "^5.0.2",
 		"mocha": "^6.2.2",
 		"nock": "^11.6.0",
-		"nyc": "14.1.1"
+		"nyc": "15.0.0"
 	},
 	"engines": {
 		"node": ">=8",
