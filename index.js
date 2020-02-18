@@ -731,11 +731,14 @@ const b2CloudStorage = class {
 					if(typeof(body) === 'string'){
 						error = new Error(body);
 					}
+					if(body.code && !body.message){
+						error = new Error('API returned error code: ' + body.code);
+					}
 					if(body.message){
 						error = new Error(body.message);
 					}
 					if(!error){
-						error = new Error('Invalid response from API.', body);
+						error = new Error('Invalid response from API.');
 					}
 					return callback(error, body);
 				}

@@ -1,0 +1,6 @@
+{
+	"check-leaks": true,
+	"throw-deprecations": true,
+	"exit": true,
+	"sort": true
+}
