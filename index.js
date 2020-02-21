@@ -115,7 +115,7 @@ const b2CloudStorage = class {
 		let cancel = null;
 
 		let fileFuncs = {};
-		let returnFuncs = {
+		const returnFuncs = {
 			cancel: function(){
 				cancel = true;
 				if(fileFuncs.cancel){
@@ -906,7 +906,7 @@ const b2CloudStorage = class {
 					}
 					queue.push(task);
 				};
-				let queue = async.queue(function(task, queueCB){
+				const queue = async.queue(function(task, queueCB){
 					// if the queue has already errored, just callback immediately
 					if(info.error){
 						return process.nextTick(queueCB);
@@ -1038,8 +1038,8 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	uploadFileSmall(filename, data, callback = function(){}){
-		let r = null,
-			info = {};
+		let r = null;
+		const info = {};
 		this.request({
 			url: 'b2_get_upload_url',
 			method: 'POST',
@@ -1169,8 +1169,8 @@ const b2CloudStorage = class {
 					return cb();
 				}
 				// resuming a file upload
+				const parts = {};
 				let startPartNumber = 0,
-					parts = {},
 					validFileId = false;
 				async.whilst(function(wcb){
 					return wcb(null, startPartNumber !== null);
