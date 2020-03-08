@@ -725,6 +725,13 @@ const b2CloudStorage = class {
 				if(res.statusCode === 401 && body && body.code === 'expired_auth_token'){
 					return this.authorize(doRequest);
 				}
+				if(res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
+					try{
+						body = JSON.parse(body);
+					}catch(err){
+						// we tried
+					}
+				}
 				// todo: handle more response codes.
 				if(res.statusCode !== 200){
 					let error = null;
@@ -741,9 +748,6 @@ const b2CloudStorage = class {
 						error = new Error('Invalid response from API.');
 					}
 					return callback(error, body);
-				}
-				if(res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
-					body = JSON.parse(body);
 				}
 				return callback(null, body, res.statusCode);
 			});
@@ -1213,7 +1217,6 @@ const b2CloudStorage = class {
 				}, function(err){
 					if(err){
 						// TODO detect when invalid file ID, don't error
-						console.log(err);
 						return cb(err);
 					}
 					if(validFileId){
@@ -1396,6 +1399,7 @@ const b2CloudStorage = class {
 					self.getHash(hashStream, function(err, hash){
 						// if hash fails, error if exceeded max attempts, else requeue
 						if(err){
+							// TODO: check if URL gets a 503 "too busy" response as per https://github.com/nodecraft/b2-cloud-storage/issues/25 and replace with a new upload url
 							url.in_use = false;
 							if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors){
 								info.error = err;
