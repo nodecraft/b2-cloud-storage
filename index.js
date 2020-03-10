@@ -8,6 +8,9 @@ const request = require('request'),
 	_ = require('lodash'),
 	async = require('async');
 
+const nodeVersion = process.version;
+const packageVersion = require('./package.json').version;
+
 /**
  * Backblaze B2 Cloud Storage class to handle stream-based uploads and all other API methods.
  */
@@ -101,6 +104,7 @@ const b2CloudStorage = class {
      * @param {Number} [data.partSize] Overwrite the default part size as defined by the b2 authorization process
      * @param {Object} [data.info] File info metadata for the file.
      * @param {String} [data.hash] Skips the sha1 hash step with hash already provided.
+     * @param {('fail_some_uploads'|'expire_some_account_authorization_tokens'|'force_cap_exceeded')} [data.testMode] Enables B2 test mode by setting the `X-Bz-Test-Mode` header, which will cause intermittent artificial failures.
      * @param {Function} [callback]
      * @returns {object} Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`
      */
@@ -711,19 +715,19 @@ const b2CloudStorage = class {
 		if(!requestData.headers.Authorization && !requestData.auth){
 			return callback(new Error('Not yet authorised. Call `.authorize` before running any functions.'));
 		}
+		// default user agent to package version and node version if not already set
+		if(!requestData.headers['User-Agent']){
+			requestData.headers['User-Agent'] = `b2-cloud-storage/${packageVersion}+node/${nodeVersion}`;
+		}
 		let reqCount = 0;
 		const doRequest = () => {
 			if(reqCount >= this.maxReauthAttempts){
 				return callback(new Error('Auth token expired, and unable to re-authenticate to acquire new token.'));
 			}
 			reqCount++;
-			return request(requestData, function(err, res, body){
+			return request(requestData, (err, res, body) => {
 				if(err){
-					return callback(err);
-				}
-				// auth expired, re-authorize and then make request again
-				if(res.statusCode === 401 && body && body.code === 'expired_auth_token'){
-					return this.authorize(doRequest);
+					return callback(err, null, res);
 				}
 				if(res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
 					try{
@@ -731,6 +735,13 @@ const b2CloudStorage = class {
 					}catch(err){
 						// we tried
 					}
+				}
+				// auth expired, re-authorize and then make request again
+				if(res.statusCode === 401 && body && body.code === 'expired_auth_token'){
+					return this.authorize(doRequest);
+				}
+				if(res.statusCode === 403 || (body && body.code === 'storage_cap_exceeded')){
+					return callback(new Error('B2 Cap Exceeded. Check your Backblaze account for more details.'), body, res);
 				}
 				// todo: handle more response codes.
 				if(res.statusCode !== 200){
@@ -747,9 +758,9 @@ const b2CloudStorage = class {
 					if(!error){
 						error = new Error('Invalid response from API.');
 					}
-					return callback(error, body);
+					return callback(error, body, res);
 				}
-				return callback(null, body, res.statusCode);
+				return callback(null, body, res);
 			});
 		};
 		return doRequest();
@@ -1044,19 +1055,18 @@ const b2CloudStorage = class {
 	uploadFileSmall(filename, data, callback = function(){}){
 		let r = null;
 		const info = {};
-		this.request({
-			url: 'b2_get_upload_url',
-			method: 'POST',
-			json: {
-				bucketId: data.bucketId
-			}
-		}, (err, results) => {
-			if(err){
-				return callback(err);
-			}
-
-			let attempts = 0;
-			const upload = () => {
+		let attempts = 0;
+		const upload = () => {
+			this.request({
+				url: 'b2_get_upload_url',
+				method: 'POST',
+				json: {
+					bucketId: data.bucketId
+				}
+			}, (err, results) => {
+				if(err){
+					return callback(err);
+				}
 				const requestData = {
 					apiUrl: results.uploadUrl,
 					appendPath: false,
@@ -1071,6 +1081,9 @@ const b2CloudStorage = class {
 					},
 					body: fs.createReadStream(filename)
 				};
+				if(data.testMode){
+					requestData.headers['X-Bz-Test-Mode'] = data.testMode;
+				}
 				data.info = _.defaults({
 					'hash_sha1': data.hash
 				}, data.info, {
@@ -1083,13 +1096,18 @@ const b2CloudStorage = class {
 
 				let interval = null;
 				callback = _.once(callback);
-				r = this.request(requestData, function(err, results, statusCode){
+				r = this.request(requestData, function(err, results, res){
 					attempts++;
 					if(err){
 						if(attempts > data.maxPartAttempts || attempts > data.maxTotalErrors){
 							return callback(new Error('Exceeded max retry attempts for upload'));
 						}
-						if(statusCode === 500 || statusCode === 503){
+						// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
+						if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT'){
+							return upload();
+						}
+						// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
+						if(res && (res.statusCode === 408 || (res.statusCode >= 500 && res.statusCode <= 599))){
 							return upload();
 						}
 						return callback(err);
@@ -1123,9 +1141,9 @@ const b2CloudStorage = class {
 					};
 					return data.onUploadProgress(info.progress);
 				}, data.progressInterval || 250);
-			};
-			upload();
-		});
+			});
+		};
+		upload();
 		return {
 			cancel: function(){
 				if(r && r.abort){
@@ -1166,6 +1184,25 @@ const b2CloudStorage = class {
 
 		data.limit = data.limit || 4; // todo: calculate / dynamic or something
 
+		const generateUploadURL = function(n, callback){
+			self.request({
+				url: 'b2_get_upload_part_url',
+				method: 'POST',
+				json: {
+					fileId: info.fileId
+				}
+			}, function(err, results){
+				if(err){
+					return callback(err);
+				}
+				info.upload_urls[n] = {
+					uploadUrl: results.uploadUrl,
+					authorizationToken: results.authorizationToken,
+					in_use: false
+				};
+				return callback();
+			});
+		};
 		let interval = null;
 		async.series([
 			function(cb){
@@ -1337,23 +1374,7 @@ const b2CloudStorage = class {
 			},
 			function(cb){
 				async.times(data.limit, function(n, next){
-					self.request({
-						url: 'b2_get_upload_part_url',
-						method: 'POST',
-						json: {
-							fileId: info.fileId
-						}
-					}, function(err, results){
-						if(err){
-							return next(err);
-						}
-						info.upload_urls[n] = {
-							uploadUrl: results.uploadUrl,
-							authorizationToken: results.authorizationToken,
-							in_use: false
-						};
-						return next();
-					});
+					return generateUploadURL(n, next);
 				}, cb);
 			},
 			function(cb){
@@ -1380,10 +1401,16 @@ const b2CloudStorage = class {
 
 					// get upload url from available and mark it as in-use
 					// re-queue if no url found (shouldn't ever happen)
-					const url = _.find(info.upload_urls, {
-						in_use: false
-					});
-					if(!url){
+					let url = null,
+						urlIndex = null;
+					for(const key in info.upload_urls){
+						if(url){ break; }
+						if(info.upload_urls[key].in_use === false){
+							url = info.upload_urls[key];
+							urlIndex = key;
+						}
+					}
+					if(!urlIndex || !url){
 						return reQueue(task, false);
 					}
 					url.in_use = true;
@@ -1399,7 +1426,6 @@ const b2CloudStorage = class {
 					self.getHash(hashStream, function(err, hash){
 						// if hash fails, error if exceeded max attempts, else requeue
 						if(err){
-							// TODO: check if URL gets a 503 "too busy" response as per https://github.com/nodecraft/b2-cloud-storage/issues/25 and replace with a new upload url
 							url.in_use = false;
 							if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors){
 								info.error = err;
@@ -1417,7 +1443,7 @@ const b2CloudStorage = class {
 							encoding: null
 						});
 						queueCB = _.once(queueCB);
-						url.request = self.request({
+						const reqOptions = {
 							apiUrl: url.uploadUrl,
 							appendPath: false,
 							method: 'POST',
@@ -1429,20 +1455,40 @@ const b2CloudStorage = class {
 								'Content-Length': task.size
 							},
 							body: fileStream
-						}, function(err){
+						};
+						if(data.testMode){
+							reqOptions.headers['X-Bz-Test-Mode'] = data.testMode;
+						}
+						url.request = self.request(reqOptions, function(err, body, res){
 							// release upload url
 							url.in_use = false;
 							url.request = null;
+
+							const retry = function(){
+								return generateUploadURL(urlIndex, function(err){
+									// if we're unable to get an upload URL from B2, we can't attempt to retry
+									if(err){ return queueCB(err); }
+									reQueue(task);
+									return queueCB();
+								});
+							};
 							// if upload fails, error if exceeded max attempts, else requeue
 							if(err){
+								// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
+								info.totalErrors++;
+								if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT'){
+									return retry();
+								}
+								// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
+								if(res && (res.statusCode === 408 || (res.statusCode >= 500 && res.statusCode <= 599))){
+									return retry();
+								}
 								// push back to queue
 								if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors){
 									info.error = err;
 									return queueCB(err);
 								}
-								info.totalErrors++;
-								reQueue(task);
-								return queueCB();
+								return queueCB(err);
 							}
 							info.shaParts[task.part] = hash;
 							info.totalUploaded += task.size;

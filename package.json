@@ -1,6 +1,6 @@
 {
 	"name": "b2-cloud-storage",
-	"version": "0.0.12",
+	"version": "0.0.13",
 	"description": "Backblaze B2 Cloud Storage API Client",
 	"keywords": [
 		"b2",

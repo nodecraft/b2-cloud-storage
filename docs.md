@@ -11,6 +11,7 @@ Backblaze B2 Cloud Storage class to handle stream-based uploads and all other AP
     * [.uploadFile(filename, data, [callback])](#b2CloudStorage+uploadFile) ⇒ <code>object</code>
     * [.listParts(data, [callback])](#b2CloudStorage+listParts)
     * [.listUnfinishedLargeFiles(data, [callback])](#b2CloudStorage+listUnfinishedLargeFiles)
+    * [.cancelLargeFile(data, [callback])](#b2CloudStorage+cancelLargeFile)
     * [.getFileInfo(fileId, [callback])](#b2CloudStorage+getFileInfo)
     * [.listBuckets([data], [callback])](#b2CloudStorage+listBuckets)
     * [.copyFilePart(data, [callback])](#b2CloudStorage+copyFilePart)
@@ -85,6 +86,7 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | [data.partSize] | <code>Number</code> | Overwrite the default part size as defined by the b2 authorization process |
 | [data.info] | <code>Object</code> | File info metadata for the file. |
 | [data.hash] | <code>String</code> | Skips the sha1 hash step with hash already provided. |
+| [data.testMode] | <code>&#x27;fail\_some\_uploads&#x27;</code> \| <code>&#x27;expire\_some\_account\_authorization\_tokens&#x27;</code> \| <code>&#x27;force\_cap\_exceeded&#x27;</code> | Enables B2 test mode by setting the `X-Bz-Test-Mode` header, which will cause intermittent artificial failures. |
 | [callback] | <code>function</code> |  |
 
 <a name="b2CloudStorage+listParts"></a>
@@ -116,6 +118,19 @@ Upload file with `b2_upload_file` or as several parts of a large file upload.Th
 | [data.namePrefix] | <code>String</code> | When a `namePrefix` is provided, only files whose names match the prefix will be returned. When using an application key that is restricted to a name prefix, you must provide a prefix here that is at least as restrictive. |
 | [data.startFileId] | <code>String</code> | The first upload to return. If there is an upload with this ID, it will be returned in the list. If not, the first upload after this the first one after this ID. |
 | [data.maxFileCount] | <code>Number</code> | The maximum number of files to return from this call. The default value is 100, and the maximum allowed is 100. |
+| [callback] | <code>function</code> |  |
+
+<a name="b2CloudStorage+cancelLargeFile"></a>
+
+### b2CloudStorage.cancelLargeFile(data, [callback])
+`b2_delete_unfinished_large_file` Cancels the upload of a large file, and deletes all of the parts that have been uploaded.
+
+**Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Object</code> | Message Body Parameters |
+| data.fileId | <code>String</code> | The ID returned by b2_start_large_file. |
 | [callback] | <code>function</code> |  |
 
 <a name="b2CloudStorage+getFileInfo"></a>
