@@ -7,7 +7,9 @@
 
 Backblaze B2 Cloud Storage API Client
 
-**This module is still in development and not recommended for production use yet.**
+`b2-cloud-storage` is an API wrapper for all current [Backblaze B2 API](https://www.backblaze.com/b2/docs/) operations. It provides helper methods for uploading files of all sizes, and takes care of the necessary chunking, parting, and API retries that need to happen to ensure files are uploaded successfully.
+
+This module adheres the integration guidelines as published by Backblaze at https://www.backblaze.com/b2/docs/integration_checklist.html.
 
 ## Basic Example
 
@@ -45,11 +47,9 @@ b2.authorize(function(err){
 You can read the [full documentation here](docs.md).
 
 ## Roadmap:
- - [ ] Add unit tests and code coverage
- - [x] Add retries to small file uploads
+ - [ ] Improve unit tests and code coverage
  - [ ] Add helper methods to delete all file versions for a single file
  - [ ] Add helper methods to better query paginated search
- - [x] Automatically handle auth token expiration
 
 
 ## License
