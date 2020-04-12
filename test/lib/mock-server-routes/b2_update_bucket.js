@@ -6,7 +6,7 @@ module.exports = function(mocks, config){
 	}).reply(401, {code: 'bad_auth_token', message: '', status: 401});
 
 	/* update bucket with valid headers and missing `applicationKeyId` */
-	mocks.api.post('/b2api/v2/b2_update_bucket', body=> !body.accountId).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
+	mocks.api.post('/b2api/v2/b2_update_bucket', body => !body.accountId).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{

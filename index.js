@@ -776,9 +776,7 @@ const b2CloudStorage = class {
 		const hash = crypto.createHash('sha1');
 		fileStream.on('data', function(chunk){
 			hash.update(chunk);
-		}).on('error', (err) => {
-			return callback(err);
-		}).on('end', function(){
+		}).on('error', err => callback(err)).on('end', function(){
 			return callback(null, hash.digest('hex'));
 		});
 	}
@@ -915,13 +913,14 @@ const b2CloudStorage = class {
 				info.shaParts = {};
 				info.totalCopied = 0;
 
+				let queue = null; // initialise queue to avoid no-use-before-define eslint error
 				const reQueue = function(task, incrementCount = true){
 					if(incrementCount){
 						task.attempts++;
 					}
 					queue.push(task);
 				};
-				const queue = async.queue(function(task, queueCB){
+				queue = async.queue(function(task, queueCB){
 					// if the queue has already errored, just callback immediately
 					if(info.error){
 						return process.nextTick(queueCB);
@@ -1380,13 +1379,14 @@ const b2CloudStorage = class {
 			function(cb){
 				info.totalUploaded = 0;
 
+				let queue = null; // initialise queue to avoid no-use-before-define eslint error
 				const reQueue = function(task, incrementCount = true){
 					if(incrementCount){
 						task.attempts++;
 					}
 					queue.push(task);
 				};
-				const queue = async.queue(function(task, queueCB){
+				queue = async.queue(function(task, queueCB){
 					// if the queue has already errored, just callback immediately
 					if(info.error){
 						return process.nextTick(queueCB);
@@ -1493,9 +1493,7 @@ const b2CloudStorage = class {
 							info.shaParts[task.part] = hash;
 							info.totalUploaded += task.size;
 							return queueCB();
-						}).on('abort', () => {
-							return queueCB();
-						});
+						}).on('abort', () => queueCB());
 					});
 				}, _.size(info.upload_urls));
 

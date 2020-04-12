@@ -6,7 +6,7 @@ module.exports = function(mocks, config){
 	}).reply(401, {code: 'bad_auth_token', message: '', status: 401});
 
 	/* copy part with valid headers and missing `sourceFileId` */
-	mocks.api.post('/b2api/v2/b2_copy_part', body=> !body.sourceFileId).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
+	mocks.api.post('/b2api/v2/b2_copy_part', body => !body.sourceFileId).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{

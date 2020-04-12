@@ -6,7 +6,7 @@ module.exports = function(mocks, config){
 	}).reply(401, {code: 'bad_auth_token', message: '', status: 401});
 
 	/* create bucket with valid headers and missing `fileName` */
-	mocks.api.post('/b2api/v2/b2_delete_file_version', body=> !body.fileName).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
+	mocks.api.post('/b2api/v2/b2_delete_file_version', body => !body.fileName).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{

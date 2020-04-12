@@ -7,7 +7,7 @@ module.exports = function(mocks, config){
 
 
 	/* get download authorization with valid headers and missing `bucketId` */
-	mocks.api.post('/b2api/v2/b2_get_download_authorization', body=> !body.bucketId).matchHeader('authorization', config.auth.all.authToken).reply(function(){
+	mocks.api.post('/b2api/v2/b2_get_download_authorization', body => !body.bucketId).matchHeader('authorization', config.auth.all.authToken).reply(function(){
 		return [
 			400,
 			{

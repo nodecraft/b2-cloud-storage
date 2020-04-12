@@ -7,7 +7,7 @@ module.exports = function(mocks, config){
 
 
 	/* delete key with valid headers and missing `applicationKeyId` */
-	mocks.api.post('/b2api/v2/b2_delete_key', body=> !body.applicationKeyId).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
+	mocks.api.post('/b2api/v2/b2_delete_key', body => !body.applicationKeyId).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
