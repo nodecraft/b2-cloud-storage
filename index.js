@@ -66,6 +66,15 @@ const b2CloudStorage = class {
 	}
 
 	/**
+     * Helper method: Properly URL encode filenames to prevent B2 throwing errors with spaces, etc.
+     * @param {string} fileName File name for upload
+     * @returns {string} Returns a safe and URL encoded file name for upload
+     */
+	static getUrlEncodedFileName(fileName){
+		return fileName.split('/').map(encodeURIComponent).join('/');
+	}
+
+	/**
      * `b2_authorize_account` method, required before calling any B2 API routes.
      * @param {Function} [callback]
      */
@@ -179,6 +188,10 @@ const b2CloudStorage = class {
 			}
 			if(err){
 				return callback(err);
+			}
+			// properly encode file name for upload
+			if(data.fileName){
+				data.fileName = b2CloudStorage.getUrlEncodedFileName(data.fileName);
 			}
 			if(smallFile){
 				fileFuncs = self.uploadFileSmall(filename, data, callback);

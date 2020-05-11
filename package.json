@@ -1,6 +1,6 @@
 {
 	"name": "b2-cloud-storage",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Backblaze B2 Cloud Storage API Client",
 	"keywords": [
 		"b2",
@@ -45,7 +45,7 @@
 		"eslint-plugin-json": "^2.1.1",
 		"eslint-plugin-node": "^11.1.0",
 		"jsdoc-to-markdown": "^5.0.3",
-		"mocha": "^7.1.1",
+		"mocha": "^7.1.2",
 		"nock": "^12.0.3",
 		"nyc": "15.0.1"
 	},
