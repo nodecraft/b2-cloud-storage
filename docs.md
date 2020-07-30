@@ -7,31 +7,34 @@ Backblaze B2 Cloud Storage class to handle stream-based uploads and all other AP
 
 * [b2CloudStorage](#b2CloudStorage)
     * [new b2CloudStorage(options)](#new_b2CloudStorage_new)
-    * [.authorize([callback])](#b2CloudStorage+authorize)
-    * [.uploadFile(filename, data, [callback])](#b2CloudStorage+uploadFile) ⇒ <code>object</code>
-    * [.listParts(data, [callback])](#b2CloudStorage+listParts)
-    * [.listUnfinishedLargeFiles(data, [callback])](#b2CloudStorage+listUnfinishedLargeFiles)
-    * [.cancelLargeFile(data, [callback])](#b2CloudStorage+cancelLargeFile)
-    * [.getFileInfo(fileId, [callback])](#b2CloudStorage+getFileInfo)
-    * [.listBuckets([data], [callback])](#b2CloudStorage+listBuckets)
-    * [.copyFilePart(data, [callback])](#b2CloudStorage+copyFilePart)
-    * [.copyFile(data, [callback])](#b2CloudStorage+copyFile) ⇒ <code>object</code>
-    * [.createBucket(data, [callback])](#b2CloudStorage+createBucket)
-    * [.updateBucket(data, [callback])](#b2CloudStorage+updateBucket)
-    * [.deleteBucket(data, [callback])](#b2CloudStorage+deleteBucket)
-    * [.listFileNames(data, [callback])](#b2CloudStorage+listFileNames)
-    * [.listFileVersions(data, [callback])](#b2CloudStorage+listFileVersions)
-    * [.listKeys([data], [callback])](#b2CloudStorage+listKeys)
-    * [.createKey(data, [callback])](#b2CloudStorage+createKey)
-    * [.deleteKey(applicationKeyId, [callback])](#b2CloudStorage+deleteKey)
-    * [.deleteFileVersion(data, [callback])](#b2CloudStorage+deleteFileVersion)
-    * [.downloadFileById(data, [callback])](#b2CloudStorage+downloadFileById)
-    * [.downloadFileByName(data, [callback])](#b2CloudStorage+downloadFileByName)
-    * [.getDownloadAuthorization(data, [callback])](#b2CloudStorage+getDownloadAuthorization)
-    * [.hideFile(data, [callback])](#b2CloudStorage+hideFile)
-    * [.request(data, callback)](#b2CloudStorage+request)
-    * [.copySmallFile(data, [callback])](#b2CloudStorage+copySmallFile) ⇒ <code>object</code>
-    * [.copyLargeFile(data, [callback])](#b2CloudStorage+copyLargeFile)
+    * _instance_
+        * [.authorize([callback])](#b2CloudStorage+authorize)
+        * [.uploadFile(filename, data, [callback])](#b2CloudStorage+uploadFile) ⇒ <code>object</code>
+        * [.listParts(data, [callback])](#b2CloudStorage+listParts)
+        * [.listUnfinishedLargeFiles(data, [callback])](#b2CloudStorage+listUnfinishedLargeFiles)
+        * [.cancelLargeFile(data, [callback])](#b2CloudStorage+cancelLargeFile)
+        * [.getFileInfo(fileId, [callback])](#b2CloudStorage+getFileInfo)
+        * [.listBuckets([data], [callback])](#b2CloudStorage+listBuckets)
+        * [.copyFilePart(data, [callback])](#b2CloudStorage+copyFilePart)
+        * [.copyFile(data, [callback])](#b2CloudStorage+copyFile) ⇒ <code>object</code>
+        * [.createBucket(data, [callback])](#b2CloudStorage+createBucket)
+        * [.updateBucket(data, [callback])](#b2CloudStorage+updateBucket)
+        * [.deleteBucket(data, [callback])](#b2CloudStorage+deleteBucket)
+        * [.listFileNames(data, [callback])](#b2CloudStorage+listFileNames)
+        * [.listFileVersions(data, [callback])](#b2CloudStorage+listFileVersions)
+        * [.listKeys([data], [callback])](#b2CloudStorage+listKeys)
+        * [.createKey(data, [callback])](#b2CloudStorage+createKey)
+        * [.deleteKey(applicationKeyId, [callback])](#b2CloudStorage+deleteKey)
+        * [.deleteFileVersion(data, [callback])](#b2CloudStorage+deleteFileVersion)
+        * [.downloadFileById(data, [callback])](#b2CloudStorage+downloadFileById)
+        * [.downloadFileByName(data, [callback])](#b2CloudStorage+downloadFileByName)
+        * [.getDownloadAuthorization(data, [callback])](#b2CloudStorage+getDownloadAuthorization)
+        * [.hideFile(data, [callback])](#b2CloudStorage+hideFile)
+        * [.request(data, callback)](#b2CloudStorage+request)
+        * [.copySmallFile(data, [callback])](#b2CloudStorage+copySmallFile) ⇒ <code>object</code>
+        * [.copyLargeFile(data, [callback])](#b2CloudStorage+copyLargeFile)
+    * _static_
+        * [.getUrlEncodedFileName(fileName)](#b2CloudStorage.getUrlEncodedFileName) ⇒ <code>string</code>
 
 <a name="new_b2CloudStorage_new"></a>
 
@@ -464,4 +467,16 @@ Helper function for `b2_copy_file` Creates a new file by copying from an existin
 | [data.partSize] | <code>Number</code> | Overwrite the default part size as defined by the b2 authorization process |
 | [data.fileInfo] | <code>Object</code> | Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file. |
 | [callback] | <code>function</code> |  |
+
+<a name="b2CloudStorage.getUrlEncodedFileName"></a>
+
+### b2CloudStorage.getUrlEncodedFileName(fileName) ⇒ <code>string</code>
+Helper method: Properly URL encode filenames to prevent B2 throwing errors with spaces, etc.
+
+**Kind**: static method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
+**Returns**: <code>string</code> - Returns a safe and URL encoded file name for upload  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| fileName | <code>string</code> | File name for upload |
 

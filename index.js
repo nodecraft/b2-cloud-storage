@@ -762,10 +762,10 @@ const b2CloudStorage = class {
 					if(typeof(body) === 'string'){
 						error = new Error(body);
 					}
-					if(body.code && !body.message){
+					if(body && body.code && !body.message){
 						error = new Error('API returned error code: ' + body.code);
 					}
-					if(body.message){
+					if(body && body.message){
 						error = new Error(body.message);
 					}
 					if(!error){
