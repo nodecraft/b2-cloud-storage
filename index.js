@@ -1,12 +1,12 @@
 'use strict';
-const url = require('url'),
-	crypto = require('crypto'),
-	os = require('os'),
-	fs = require('fs');
+const url = require('url');
+const crypto = require('crypto');
+const os = require('os');
+const fs = require('fs');
 
-const request = require('request'),
-	_ = require('lodash'),
-	async = require('async');
+const request = require('request');
+const _ = require('lodash');
+const async = require('async');
 
 const nodeVersion = process.version;
 const packageVersion = require('./package.json').version;
@@ -326,9 +326,9 @@ const b2CloudStorage = class {
 	copyFile(data, callback){
 		const self = this;
 
-		let returnData = null,
-			cancel = null,
-			fileFuncs = {};
+		let returnData = null;
+		let cancel = null;
+		let fileFuncs = {};
 
 		const returnFuncs = {
 			cancel: function(){
@@ -1223,8 +1223,8 @@ const b2CloudStorage = class {
 				}
 				// resuming a file upload
 				const parts = {};
-				let startPartNumber = 0,
-					validFileId = false;
+				let startPartNumber = 0;
+				let validFileId = false;
 				async.whilst(function(wcb){
 					return wcb(null, startPartNumber !== null);
 				}, function(wcb){
@@ -1414,8 +1414,8 @@ const b2CloudStorage = class {
 
 					// get upload url from available and mark it as in-use
 					// re-queue if no url found (shouldn't ever happen)
-					let url = null,
-						urlIndex = null;
+					let url = null;
+					let urlIndex = null;
 					for(const key in info.upload_urls){
 						if(url){ break; }
 						if(info.upload_urls[key].in_use === false){
