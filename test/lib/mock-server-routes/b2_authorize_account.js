@@ -14,7 +14,7 @@ module.exports = function(mocks, config){
 			return [
 				200,
 				{
-					absoluteMinimumPartSize: 5000000,
+					absoluteMinimumPartSize: 5_000_000,
 					accountId: config.auth[authType].responseAccountId,
 					allowed: {
 						bucketId: config.bucketId,
@@ -27,7 +27,7 @@ module.exports = function(mocks, config){
 					apiUrl: 'https://api001.backblazeb2.com',
 					authorizationToken: config.auth[authType].authToken,
 					downloadUrl: 'https://f001.backblazeb2.com',
-					recommendedPartSize: 100000000
+					recommendedPartSize: 100_000_000
 				}
 			];
 		});

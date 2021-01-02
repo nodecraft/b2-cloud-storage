@@ -60,7 +60,7 @@ module.exports = function(mocks, config){
 				applicationKey: config.auth.buckets.applicationKey,
 				capabilities: config.auth.buckets.capabilities,
 				accountId: config.auth.buckets.accountId,
-				expirationTimestamp: 1536964279000,
+				expirationTimestamp: 1_536_964_279_000,
 				bucketId: config.bucketId,
 				namePrefix: ''
 			}

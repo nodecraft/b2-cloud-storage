@@ -40,20 +40,20 @@ const b2CloudStorage = class {
 			throw new Error('Missing authentication applicationKey');
 		}
 
-		this.maxSmallFileSize = options.maxSmallFileSize || 100000000; // default to 100MB
-		if(this.maxSmallFileSize > 5000000000){
+		this.maxSmallFileSize = options.maxSmallFileSize || 100_000_000; // default to 100MB
+		if(this.maxSmallFileSize > 5_000_000_000){
 			throw new Error('maxSmallFileSize can not exceed 5GB');
 		}
-		if(this.maxSmallFileSize < 100000000){
+		if(this.maxSmallFileSize < 100_000_000){
 			throw new Error('maxSmallFileSize can not be less than 100MB');
 		}
 
 		this.maxCopyWorkers = options.maxCopyWorkers || (os.cpus().length * 5); // default to the number of available CPUs * 5 (web requests are cheap)
-		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100000000; // default to 5GB
-		if(this.maxSmallCopyFileSize > 5000000000){
+		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 5GB
+		if(this.maxSmallCopyFileSize > 5_000_000_000){
 			throw new Error('maxSmallFileSize can not exceed 5GB');
 		}
-		if(this.maxSmallCopyFileSize < 5000000){
+		if(this.maxSmallCopyFileSize < 5_000_000){
 			throw new Error('maxSmallFileSize can not be less than 5MB');
 		}
 
@@ -71,7 +71,7 @@ const b2CloudStorage = class {
      * @returns {string} Returns a safe and URL encoded file name for upload
      */
 	static getUrlEncodedFileName(fileName){
-		return fileName.split('/').map(encodeURIComponent).join('/');
+		return fileName.split('/').map(component => encodeURIComponent(component)).join('/');
 	}
 
 	/**
@@ -119,7 +119,7 @@ const b2CloudStorage = class {
      */
 	uploadFile(filename, data, callback = function(){}){
 		// todo: check if allowed (access) to upload files
-		if(data.partSize < 5000000){
+		if(data.partSize < 5_000_000){
 			return callback(new Error('partSize can not be lower than 5MB'));
 		}
 
@@ -745,7 +745,7 @@ const b2CloudStorage = class {
 				if(res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
 					try{
 						body = JSON.parse(body);
-					}catch(err){
+					}catch{
 						// we tried
 					}
 				}
@@ -876,7 +876,7 @@ const b2CloudStorage = class {
 						fileInfo: _.defaults(data.fileInfo, {
 							large_file_sha1: data.hash,
 							hash_sha1: data.hash,
-							src_last_modified_millis: String(new Date().getTime())
+							src_last_modified_millis: String(Date.now())
 						})
 					}
 				}, (err, results) => {
@@ -903,7 +903,7 @@ const b2CloudStorage = class {
 				info.chunks = [];
 				info.lastPart = 1;
 				// create array with calculated number of chunks (floored)
-				const pushChunks = Array(Math.floor(data.size / partSize));
+				const pushChunks = new Array(Math.floor(data.size / partSize));
 				_.each(pushChunks, function(){
 					info.chunks.push(_.clone(fsOptions));
 					fsOptions.part++;

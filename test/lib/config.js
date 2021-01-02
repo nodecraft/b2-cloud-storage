@@ -43,7 +43,7 @@ const config = {
 				src_last_modified_millis: "1536964184056"
 			},
 			fileName: "testing.txt",
-			uploadTimestamp: 1536964279000
+			uploadTimestamp: 1_536_964_279_000
 
 		},
 		destination: {
@@ -55,7 +55,7 @@ const config = {
 				src_last_modified_millis: "1536964200750"
 			},
 			fileName: "testing2.txt",
-			uploadTimestamp: 1536964288000
+			uploadTimestamp: 1_536_964_288_000
 		}
 	},
 	responses: {

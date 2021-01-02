@@ -25,9 +25,9 @@ describe('b2CloudStorage', function(){
 	});
 
 	it('fails with invalid `maxSmallFileSize', function(){
-		assert.throws(() => new b2CloudStorage({auth: {accountId: 'bar', applicationKey: 'foo'}, maxSmallFileSize: 99999999}));
-		assert.throws(() => new b2CloudStorage({auth: {accountId: 'bar', applicationKey: 'foo'}, maxSmallFileSize: 5000000001}));
-		assert.doesNotThrow(() => new b2CloudStorage({auth: {accountId: 'bar', applicationKey: 'foo'}, maxSmallFileSize: 5000000000}));
-		assert.doesNotThrow(() => new b2CloudStorage({auth: {accountId: 'bar', applicationKey: 'foo'}, maxSmallFileSize: 100000000}));
+		assert.throws(() => new b2CloudStorage({auth: {accountId: 'bar', applicationKey: 'foo'}, maxSmallFileSize: 99_999_999}));
+		assert.throws(() => new b2CloudStorage({auth: {accountId: 'bar', applicationKey: 'foo'}, maxSmallFileSize: 5_000_000_001}));
+		assert.doesNotThrow(() => new b2CloudStorage({auth: {accountId: 'bar', applicationKey: 'foo'}, maxSmallFileSize: 5_000_000_000}));
+		assert.doesNotThrow(() => new b2CloudStorage({auth: {accountId: 'bar', applicationKey: 'foo'}, maxSmallFileSize: 100_000_000}));
 	});
 });
