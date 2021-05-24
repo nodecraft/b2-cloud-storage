@@ -24,7 +24,7 @@ describe('b2_hide_file', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.hideFile({
-				bucketId: config.bucketId
+				bucketId: config.bucketId,
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field fileName is missing');
@@ -39,7 +39,7 @@ describe('b2_hide_file', function(){
 			if(err){ return done(err); }
 			b2.hideFile({
 				bucketId: config.bucketId,
-				fileName: config.file.source.fileName
+				fileName: config.file.source.fileName,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -54,7 +54,7 @@ describe('b2_hide_file', function(){
 			if(err){ return done(err); }
 			b2.hideFile({
 				bucketId: config.bucketId,
-				fileName: config.file.source.fileName
+				fileName: config.file.source.fileName,
 			}, done);
 		});
 	});

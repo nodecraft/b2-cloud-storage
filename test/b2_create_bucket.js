@@ -24,7 +24,7 @@ describe('b2_create_bucket', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.createBucket({
-				bucketName: config.bucketName
+				bucketName: config.bucketName,
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field bucketType is missing');
@@ -39,7 +39,7 @@ describe('b2_create_bucket', function(){
 			if(err){ return done(err); }
 			b2.createBucket({
 				bucketName: config.bucketName,
-				bucketType: config.bucketType
+				bucketType: config.bucketType,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -54,7 +54,7 @@ describe('b2_create_bucket', function(){
 			if(err){ return done(err); }
 			b2.createBucket({
 				bucketName: config.bucketName,
-				bucketType: config.bucketType
+				bucketType: config.bucketType,
 			}, done);
 		});
 	});

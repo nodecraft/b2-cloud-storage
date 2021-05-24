@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/explicit-length-check */
 'use strict';
 const url = require('url');
 const crypto = require('crypto');
@@ -82,10 +83,10 @@ const b2CloudStorage = class {
 		this.request({
 			auth: {
 				user: this.auth.accountId,
-				password: this.auth.applicationKey
+				password: this.auth.applicationKey,
 			},
 			apiUrl: 'https://api.backblazeb2.com',
-			url: 'b2_authorize_account'
+			url: 'b2_authorize_account',
 		}, (err, results) => {
 			if(err){
 				return callback(err);
@@ -142,7 +143,7 @@ const b2CloudStorage = class {
 				return {
 					percent: 0,
 					bytesDispatched: 0,
-					bytesTotal: data.size || 0
+					bytesTotal: data.size || 0,
 				};
 			},
 			info: function(){
@@ -150,7 +151,7 @@ const b2CloudStorage = class {
 					return fileFuncs.info();
 				}
 				return null;
-			}
+			},
 		};
 		async.series([
 			function(cb){
@@ -181,7 +182,7 @@ const b2CloudStorage = class {
 					smallFile = data.size <= self.maxSmallFileSize;
 					return cb();
 				});
-			}
+			},
 		], function(err){
 			if(cancel){
 				return callback(new Error('B2 upload canceled'));
@@ -214,7 +215,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_list_parts',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -231,7 +232,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_list_unfinished_large_files',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -245,7 +246,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_cancel_large_file',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -259,8 +260,8 @@ const b2CloudStorage = class {
 			url: 'b2_get_file_info',
 			method: 'POST',
 			json: {
-				fileId
-			}
+				fileId,
+			},
 		}, callback);
 	}
 
@@ -283,7 +284,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_list_buckets',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -302,7 +303,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_copy_part',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -344,7 +345,7 @@ const b2CloudStorage = class {
 				return {
 					percent: 0,
 					bytesCopied: 0,
-					bytesTotal: data.size || 0
+					bytesTotal: data.size || 0,
 				};
 			},
 			info: function(){
@@ -352,7 +353,7 @@ const b2CloudStorage = class {
 					return fileFuncs.info();
 				}
 				return null;
-			}
+			},
 		};
 
 		async.series([
@@ -393,7 +394,7 @@ const b2CloudStorage = class {
 					'fileName',
 					'destinationBucketId',
 					'range',
-					'metadataDirective'
+					'metadataDirective',
 				];
 				// only required for metadata replace
 				if(data.metadataDirective === 'REPLACE'){
@@ -406,7 +407,7 @@ const b2CloudStorage = class {
 					returnData = results;
 					return cb();
 				});
-			}
+			},
 		], function(err){
 			if(err){
 				return callback(err);
@@ -434,7 +435,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_create_bucket',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -457,7 +458,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_update_bucket',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -471,7 +472,7 @@ const b2CloudStorage = class {
 	deleteBucket(data, callback){
 		if(typeof(data) === 'string'){
 			data = {
-				bucketId: data
+				bucketId: data,
 			};
 		}
 		if(!data.accountId){
@@ -480,7 +481,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_delete_bucket',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -500,7 +501,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_list_file_names',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -519,7 +520,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_list_file_versions',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -542,7 +543,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_list_keys',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -564,7 +565,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_create_key',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -578,8 +579,8 @@ const b2CloudStorage = class {
 			url: 'b2_delete_key',
 			method: 'POST',
 			json: {
-				applicationKeyId
-			}
+				applicationKeyId,
+			},
 		}, callback);
 	}
 
@@ -596,7 +597,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_delete_file_version',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -623,8 +624,8 @@ const b2CloudStorage = class {
 			json: false,
 			headers: {},
 			qs: {
-				fileId: data.fileId
-			}
+				fileId: data.fileId,
+			},
 		};
 		if(data.Authorization){
 			requestData.headers.Authorization = data.Authorization;
@@ -654,7 +655,7 @@ const b2CloudStorage = class {
 			apiUrl: `${this.downloadUrl}/file/${data.bucket}/${data.fileName}`,
 			json: false,
 			appendPath: false,
-			headers: {}
+			headers: {},
 		};
 		if(data.Authorization){
 			requestData.headers.Authorization = data.Authorization;
@@ -681,7 +682,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_get_download_authorization',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -696,7 +697,7 @@ const b2CloudStorage = class {
 		return this.request({
 			url: 'b2_hide_file',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 	}
 
@@ -717,7 +718,7 @@ const b2CloudStorage = class {
 		const requestData = _.defaults(data, {
 			method: 'get',
 			json: true,
-			headers: {}
+			headers: {},
 		});
 		requestData.url = apiUrl.toString();
 		// if auth data is set from `authorize` function and we haven't overridden it via `data.auth` or request headers, set it for this request
@@ -831,14 +832,14 @@ const b2CloudStorage = class {
 		const req = this.request({
 			url: 'b2_copy_file',
 			method: 'POST',
-			json: data
+			json: data,
 		}, callback);
 
 		// If we had a progress and info we could return those as well
 		return {
 			cancel: function(){
 				req.abort();
-			}
+			},
 		};
 	}
 
@@ -860,7 +861,7 @@ const b2CloudStorage = class {
 	copyLargeFile(data, callback){
 		const self = this;
 		const info = {
-			totalErrors: 0
+			totalErrors: 0,
 		};
 
 		let interval = null;
@@ -876,9 +877,9 @@ const b2CloudStorage = class {
 						fileInfo: _.defaults(data.fileInfo, {
 							large_file_sha1: data.hash,
 							hash_sha1: data.hash,
-							src_last_modified_millis: String(Date.now())
-						})
-					}
+							src_last_modified_millis: String(Date.now()),
+						}),
+					},
 				}, (err, results) => {
 					if(err){
 						return cb(err);
@@ -898,12 +899,12 @@ const b2CloudStorage = class {
 					start: 0,
 					size: partSize,
 					end: partSize - 1,
-					bytesDispatched: 0
+					bytesDispatched: 0,
 				};
 				info.chunks = [];
 				info.lastPart = 1;
 				// create array with calculated number of chunks (floored)
-				const pushChunks = new Array(Math.floor(data.size / partSize));
+				const pushChunks = Array.from({length: Math.floor(data.size / partSize)});
 				_.each(pushChunks, function(){
 					info.chunks.push(_.clone(fsOptions));
 					fsOptions.part++;
@@ -945,8 +946,8 @@ const b2CloudStorage = class {
 							sourceFileId: data.sourceFileId,
 							largeFileId: info.fileId,
 							partNumber: task.part,
-							range: `bytes=${task.start}-${task.end}`
-						}
+							range: `bytes=${task.start}-${task.end}`,
+						},
 					}, function(err, results){
 						if(err){
 							// if upload fails, error if exceeded max attempts, else requeue
@@ -985,7 +986,7 @@ const b2CloudStorage = class {
 					return data.onUploadProgress({
 						percent: percent,
 						bytesCopied: info.totalCopied,
-						bytesTotal: data.size
+						bytesTotal: data.size,
 					});
 				}, data.progressInterval || 250);
 
@@ -1005,8 +1006,8 @@ const b2CloudStorage = class {
 					url: 'b2_cancel_large_file',
 					method: 'POST',
 					json: {
-						fileId: info.fileId
-					}
+						fileId: info.fileId,
+					},
 				}, cb);
 			},
 			function(cb){
@@ -1018,8 +1019,8 @@ const b2CloudStorage = class {
 					method: 'POST',
 					json: {
 						fileId: info.fileId,
-						partSha1Array: info.partSha1Array
-					}
+						partSha1Array: info.partSha1Array,
+					},
 				}, function(err, results){
 					if(err){
 						return cb(err);
@@ -1027,7 +1028,7 @@ const b2CloudStorage = class {
 					info.returnData = results;
 					return cb();
 				});
-			}
+			},
 		], function(err){
 			if(interval){
 				clearInterval(interval);
@@ -1051,9 +1052,9 @@ const b2CloudStorage = class {
 					return info.returnData;
 				}
 				return {
-					fileId: info.fileId
+					fileId: info.fileId,
 				};
-			}
+			},
 		};
 	}
 
@@ -1065,7 +1066,7 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	uploadFileSmall(filename, data, callback = function(){}){
-		let r = null;
+		let req = null;
 		const info = {};
 		let attempts = 0;
 		const upload = () => {
@@ -1073,8 +1074,8 @@ const b2CloudStorage = class {
 				url: 'b2_get_upload_url',
 				method: 'POST',
 				json: {
-					bucketId: data.bucketId
-				}
+					bucketId: data.bucketId,
+				},
 			}, (err, results) => {
 				if(err){
 					return callback(err);
@@ -1089,17 +1090,17 @@ const b2CloudStorage = class {
 						'Content-Type': data.contentType,
 						'Content-Length': data.size,
 						'X-Bz-File-Name': data.fileName,
-						'X-Bz-Content-Sha1': data.hash
+						'X-Bz-Content-Sha1': data.hash,
 					},
-					body: fs.createReadStream(filename)
+					body: fs.createReadStream(filename),
 				};
 				if(data.testMode){
 					requestData.headers['X-Bz-Test-Mode'] = data.testMode;
 				}
 				data.info = _.defaults({
-					'hash_sha1': data.hash
+					'hash_sha1': data.hash,
 				}, data.info, {
-					'src_last_modified_millis': data.stat.mtime.getTime()
+					'src_last_modified_millis': data.stat.mtime.getTime(),
 				});
 				_.each(data.info || {}, function(value, key){
 					requestData.headers['X-Bz-Info-' + key] = value;
@@ -1108,14 +1109,14 @@ const b2CloudStorage = class {
 
 				let interval = null;
 				callback = _.once(callback);
-				r = this.request(requestData, function(err, results, res){
+				req = this.request(requestData, function(err, results, res){
 					attempts++;
 					if(err){
 						if(attempts > data.maxPartAttempts || attempts > data.maxTotalErrors){
 							return callback(new Error('Exceeded max retry attempts for upload'));
 						}
 						// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
-						if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT'){
+						if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT'){
 							return upload();
 						}
 						// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
@@ -1142,14 +1143,14 @@ const b2CloudStorage = class {
 						return;
 					}
 					let bytesDispatched = 0;
-					if(r.req && r.req.connection && r.req.connection._bytesDispatched){
-						bytesDispatched = r.req.connection._bytesDispatched;
+					if(req.req && req.req.connection && req.req.connection._bytesDispatched){
+						bytesDispatched = req.req.connection._bytesDispatched;
 					}
 					const percent = Math.floor((bytesDispatched / data.size) * 100);
 					info.progress = {
 						percent: percent,
 						bytesDispatched: bytesDispatched,
-						bytesTotal: data.size
+						bytesTotal: data.size,
 					};
 					return data.onUploadProgress(info.progress);
 				}, data.progressInterval || 250);
@@ -1158,8 +1159,8 @@ const b2CloudStorage = class {
 		upload();
 		return {
 			cancel: function(){
-				if(r && r.abort){
-					r.abort();
+				if(req && req.abort){
+					req.abort();
 				}
 			},
 			progress: function(){
@@ -1167,7 +1168,7 @@ const b2CloudStorage = class {
 			},
 			info: function(){
 				return info.returnData;
-			}
+			},
 		};
 	}
 
@@ -1190,27 +1191,27 @@ const b2CloudStorage = class {
 			uploadedParts: {},
 			lastUploadedPart: 0,
 			lastConsecutivePart: 0,
-			missingPartSize: 0
+			missingPartSize: 0,
 		};
 		// TODO: handle update callbacks
 
 		data.limit = data.limit || 4; // todo: calculate / dynamic or something
 
-		const generateUploadURL = function(n, callback){
+		const generateUploadURL = function(num, callback){
 			self.request({
 				url: 'b2_get_upload_part_url',
 				method: 'POST',
 				json: {
-					fileId: info.fileId
-				}
+					fileId: info.fileId,
+				},
 			}, function(err, results){
 				if(err){
 					return callback(err);
 				}
-				info.upload_urls[n] = {
+				info.upload_urls[num] = {
 					uploadUrl: results.uploadUrl,
 					authorizationToken: results.authorizationToken,
-					in_use: false
+					in_use: false,
 				};
 				return callback();
 			});
@@ -1230,7 +1231,7 @@ const b2CloudStorage = class {
 				}, function(wcb){
 					const partsData = {
 						fileId: data.largeFileId,
-						maxPartCount: 1000
+						maxPartCount: 1000,
 					};
 					if(startPartNumber){
 						partsData.startPartNumber = startPartNumber;
@@ -1290,7 +1291,7 @@ const b2CloudStorage = class {
 					part: 0,
 					start: 0,
 					size: 0,
-					end: -1
+					end: -1,
 				};
 				info.chunks = [];
 				info.lastPart = 1;
@@ -1359,9 +1360,9 @@ const b2CloudStorage = class {
 				}
 				let fileInfo = _.defaults({
 					large_file_sha1: data.hash,
-					hash_sha1: data.hash
+					hash_sha1: data.hash,
 				}, data.info, {
-					src_last_modified_millis: data.stat.mtime.getTime()
+					src_last_modified_millis: data.stat.mtime.getTime(),
 				});
 				fileInfo = _.mapValues(fileInfo, _.toString);
 				self.request({
@@ -1371,8 +1372,8 @@ const b2CloudStorage = class {
 						bucketId: data.bucketId,
 						fileName: data.fileName,
 						contentType: data.contentType,
-						fileInfo: fileInfo
-					}
+						fileInfo: fileInfo,
+					},
 				}, (err, results) => {
 					if(err){
 						return cb(err);
@@ -1385,8 +1386,8 @@ const b2CloudStorage = class {
 				});
 			},
 			function(cb){
-				async.times(data.limit, function(n, next){
-					return generateUploadURL(n, next);
+				async.times(data.limit, function(num, next){
+					return generateUploadURL(num, next);
 				}, cb);
 			},
 			function(cb){
@@ -1432,7 +1433,7 @@ const b2CloudStorage = class {
 					const hashStream = fs.createReadStream(filename, {
 						start: task.start,
 						end: task.end,
-						encoding: null
+						encoding: null,
 					});
 
 					// get hash
@@ -1453,7 +1454,7 @@ const b2CloudStorage = class {
 						const fileStream = fs.createReadStream(filename, {
 							start: task.start,
 							end: task.end,
-							encoding: null
+							encoding: null,
 						});
 						queueCB = _.once(queueCB);
 						const reqOptions = {
@@ -1465,9 +1466,9 @@ const b2CloudStorage = class {
 								'Authorization': url.authorizationToken,
 								'X-Bz-Part-Number': task.part,
 								'X-Bz-Content-Sha1': hash,
-								'Content-Length': task.size
+								'Content-Length': task.size,
 							},
-							body: fileStream
+							body: fileStream,
 						};
 						if(data.testMode){
 							reqOptions.headers['X-Bz-Test-Mode'] = data.testMode;
@@ -1489,7 +1490,7 @@ const b2CloudStorage = class {
 							if(err){
 								// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
 								info.totalErrors++;
-								if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT'){
+								if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT'){
 									return retry();
 								}
 								// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
@@ -1506,6 +1507,8 @@ const b2CloudStorage = class {
 							info.shaParts[task.part] = hash;
 							info.totalUploaded += task.size;
 							return queueCB();
+						}).on('error', () => {
+							// do nothing. Error is handled by callback above, but we need(?) to catch this to prevent it throwing
 						}).on('abort', () => queueCB());
 					});
 				}, _.size(info.upload_urls));
@@ -1539,7 +1542,7 @@ const b2CloudStorage = class {
 					return data.onUploadProgress({
 						percent: percent,
 						bytesDispatched: bytesDispatched,
-						bytesTotal: data.size
+						bytesTotal: data.size,
 					});
 				}, data.progressInterval || 250);
 
@@ -1559,8 +1562,8 @@ const b2CloudStorage = class {
 					url: 'b2_cancel_large_file',
 					method: 'POST',
 					json: {
-						fileId: info.fileId
-					}
+						fileId: info.fileId,
+					},
 				}, cb);
 			},
 			function(cb){
@@ -1572,8 +1575,8 @@ const b2CloudStorage = class {
 					method: 'POST',
 					json: {
 						fileId: info.fileId,
-						partSha1Array: info.partSha1Array
-					}
+						partSha1Array: info.partSha1Array,
+					},
 				}, function(err, results){
 					if(err){
 						return cb(err);
@@ -1581,7 +1584,7 @@ const b2CloudStorage = class {
 					info.returnData = results;
 					return cb();
 				});
-			}
+			},
 		], function(err){
 			if(interval){
 				clearInterval(interval);
@@ -1608,9 +1611,9 @@ const b2CloudStorage = class {
 					return info.returnData;
 				}
 				return {
-					fileId: info.fileId
+					fileId: info.fileId,
 				};
-			}
+			},
 		};
 	}
 };

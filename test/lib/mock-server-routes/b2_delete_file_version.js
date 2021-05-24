@@ -12,47 +12,47 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field fileName is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* delete file version with valid headers and missing `fileId` */
 	mocks.api.post('/b2api/v2/b2_delete_file_version', {
-		fileName: config.file.source.fileName
+		fileName: config.file.source.fileName,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
 				code: 'bad_request',
 				message: 'required field fileId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* delete file version with valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_delete_file_version', {
 		fileName: config.file.source.fileName,
-		fileId: config.file.source.fileId
+		fileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
 	/* delete file version with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_delete_file_version', {
 		fileName: config.file.source.fileName,
-		fileId: config.file.source.fileId
+		fileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			200,
 			{
 				fileName: config.file.source.fileName,
-				fileId: config.file.source.fileId
-			}
+				fileId: config.file.source.fileId,
+			},
 		];
 	});
 };

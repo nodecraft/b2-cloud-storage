@@ -24,7 +24,7 @@ describe('b2_get_download_authorization', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.getDownloadAuthorization({
-				bucketId: config.bucketId
+				bucketId: config.bucketId,
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field fileNamePrefix is missing');
@@ -39,7 +39,7 @@ describe('b2_get_download_authorization', function(){
 			if(err){ return done(err); }
 			b2.getDownloadAuthorization({
 				bucketId: config.bucketId,
-				fileNamePrefix: config.file.source.fileName
+				fileNamePrefix: config.file.source.fileName,
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field validDurationInSeconds is missing');
@@ -55,7 +55,7 @@ describe('b2_get_download_authorization', function(){
 			b2.getDownloadAuthorization({
 				bucketId: config.bucketId,
 				fileNamePrefix: config.file.source.fileName,
-				validDurationInSeconds: 10
+				validDurationInSeconds: 10,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -71,7 +71,7 @@ describe('b2_get_download_authorization', function(){
 			b2.getDownloadAuthorization({
 				bucketId: config.bucketId,
 				fileNamePrefix: config.file.source.fileName,
-				validDurationInSeconds: 10
+				validDurationInSeconds: 10,
 			}, done);
 		});
 	});

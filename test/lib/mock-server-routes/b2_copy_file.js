@@ -12,40 +12,40 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field sourceFileId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* copy file with valid headers and missing `fileName` */
 	mocks.api.post('/b2api/v2/b2_copy_file', {
-		sourceFileId: config.file.source.fileId
+		sourceFileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
 				code: 'bad_request',
 				message: 'required field fileName is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* copy file with valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_copy_file', {
 		sourceFileId: config.file.source.fileId,
-		fileName: config.file.destination.fileName
+		fileName: config.file.destination.fileName,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
 	/* copy file with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_copy_file', {
 		sourceFileId: config.file.source.fileId,
-		fileName: config.file.destination.fileName
+		fileName: config.file.destination.fileName,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			200,
@@ -58,11 +58,11 @@ module.exports = function(mocks, config){
 				contentType: config.file.destination.contentType,
 				fileId: config.file.destination.fileId,
 				fileInfo: {
-					src_last_modified_millis: config.file.destination.fileInfo
+					src_last_modified_millis: config.file.destination.fileInfo,
 				},
 				fileName: config.file.destination.fileName,
-				uploadTimestamp: config.file.destination.uploadTimestamp
-			}
+				uploadTimestamp: config.file.destination.uploadTimestamp,
+			},
 		];
 	});
 };

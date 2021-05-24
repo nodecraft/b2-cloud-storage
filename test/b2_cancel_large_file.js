@@ -11,8 +11,8 @@ describe('b2_cancel_large_file', function(){
 		const b2 = new b2CloudStorage({
 			auth: {
 				accountId: config.auth.all.accountId,
-				applicationKey: config.auth.all.applicationKey
-			}
+				applicationKey: config.auth.all.applicationKey,
+			},
 		});
 		b2.authorize((err) => {
 			if(err){
@@ -30,15 +30,15 @@ describe('b2_cancel_large_file', function(){
 		const b2 = new b2CloudStorage({
 			auth: {
 				accountId: config.auth.none.accountId,
-				applicationKey: config.auth.none.applicationKey
-			}
+				applicationKey: config.auth.none.applicationKey,
+			},
 		});
 		b2.authorize((err) => {
 			if(err){
 				return done(err);
 			}
 			b2.cancelLargeFile({
-				fileId: config.file.source.fileId
+				fileId: config.file.source.fileId,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -51,15 +51,15 @@ describe('b2_cancel_large_file', function(){
 		const b2 = new b2CloudStorage({
 			auth: {
 				accountId: config.auth.all.accountId,
-				applicationKey: config.auth.all.applicationKey
-			}
+				applicationKey: config.auth.all.applicationKey,
+			},
 		});
 		b2.authorize((err) => {
 			if(err){
 				return done(err);
 			}
 			b2.cancelLargeFile({
-				fileId: config.file.source.fileId
+				fileId: config.file.source.fileId,
 			}, done);
 		});
 	});

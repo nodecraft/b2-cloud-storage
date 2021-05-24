@@ -9,7 +9,7 @@ module.exports = function(mocks, config){
 	for(const authType in config.auth){
 		mocks.raw.get('/b2api/v2/b2_authorize_account').basicAuth({
 			user: config.auth[authType].accountId,
-			pass: config.auth[authType].applicationKey
+			pass: config.auth[authType].applicationKey,
 		}).reply(function(){
 			return [
 				200,
@@ -20,15 +20,15 @@ module.exports = function(mocks, config){
 						bucketId: config.bucketId,
 						bucketName: config.bucketName,
 						capabilities: [
-							'listBuckets', 'writeFiles', 'deleteFiles'
+							'listBuckets', 'writeFiles', 'deleteFiles',
 						],
-						namePrefix: null
+						namePrefix: null,
 					},
 					apiUrl: 'https://api001.backblazeb2.com',
 					authorizationToken: config.auth[authType].authToken,
 					downloadUrl: 'https://f001.backblazeb2.com',
-					recommendedPartSize: 100_000_000
-				}
+					recommendedPartSize: 100_000_000,
+				},
 			];
 		});
 	}

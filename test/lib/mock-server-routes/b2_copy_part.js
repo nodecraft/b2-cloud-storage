@@ -12,37 +12,37 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field sourceFileId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* copy part with valid headers and missing `largeFileId` */
 	mocks.api.post('/b2api/v2/b2_copy_part', {
-		sourceFileId: config.file.source.fileId
+		sourceFileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
 				code: 'bad_request',
 				message: 'required field largeFileId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* copy part with valid headers and missing `partNumber` */
 	mocks.api.post('/b2api/v2/b2_copy_part', {
 		sourceFileId: config.file.source.fileId,
-		largeFileId: config.file.destination.fileId
+		largeFileId: config.file.destination.fileId,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
 				code: 'bad_request',
 				message: 'required field partNumber is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
@@ -50,11 +50,11 @@ module.exports = function(mocks, config){
 	mocks.api.post('/b2api/v2/b2_copy_part', {
 		sourceFileId: config.file.source.fileId,
 		largeFileId: config.file.destination.fileId,
-		partNumber: 1
+		partNumber: 1,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
@@ -62,7 +62,7 @@ module.exports = function(mocks, config){
 	mocks.api.post('/b2api/v2/b2_copy_part', {
 		sourceFileId: config.file.source.fileId,
 		largeFileId: config.file.destination.fileId,
-		partNumber: 1
+		partNumber: 1,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			200,
@@ -71,8 +71,8 @@ module.exports = function(mocks, config){
 				partNumber: config.file.destination.partNumber,
 				contentLength: config.file.destination.contentLength,
 				contentSha1: config.file.destination.contentSha1,
-				uploadTimestamp: config.file.destination.uploadTimestamp
-			}
+				uploadTimestamp: config.file.destination.uploadTimestamp,
+			},
 		];
 	});
 };

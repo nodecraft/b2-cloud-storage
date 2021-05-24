@@ -12,24 +12,24 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field bucketId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* list file names with valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_list_file_names', {
-		bucketId: config.bucketId
+		bucketId: config.bucketId,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
 	/* list file names with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_list_file_names', {
-		bucketId: config.bucketId
+		bucketId: config.bucketId,
 	}).matchHeader('authorization', config.auth.all.authToken).reply(function(){
 		return [
 			200,
@@ -44,14 +44,14 @@ module.exports = function(mocks, config){
 						contentType: config.file.destination.contentType,
 						fileId: config.file.destination.fileId,
 						fileInfo: {
-							src_last_modified_millis: config.file.destination.fileInfo
+							src_last_modified_millis: config.file.destination.fileInfo,
 						},
 						fileName: config.file.destination.fileName,
-						uploadTimestamp: config.file.destination.uploadTimestamp
-					}
+						uploadTimestamp: config.file.destination.uploadTimestamp,
+					},
 				],
-				nextFileName: null
-			}
+				nextFileName: null,
+			},
 		];
 	});
 };

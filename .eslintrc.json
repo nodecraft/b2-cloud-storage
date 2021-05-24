@@ -1,7 +1,7 @@
 {
 	"root": true,
 	"extends": [
-		"nodecraft"
+		"@nodecraft"
 	],
 	"parserOptions":{
 		"ecmaVersion": 2021

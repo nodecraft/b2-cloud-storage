@@ -12,24 +12,24 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field fileId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* list unfinished large file swith valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_cancel_large_file', {
-		fileId: config.file.source.fileId
+		fileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
 	/* list unfinished large files with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_cancel_large_file', {
-		fileId: config.file.source.fileId
+		fileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.all.authToken).reply(function(){
 		return [
 			200,
@@ -37,8 +37,8 @@ module.exports = function(mocks, config){
 				accountId: config.auth.buckets.accountId,
 				bucketId: config.bucketId,
 				fileId: config.file.destination.fileId,
-				fileName: config.file.destination.fileName
-			}
+				fileName: config.file.destination.fileName,
+			},
 		];
 	});
 };

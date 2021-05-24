@@ -24,7 +24,7 @@ describe('b2_delete_file_version', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.deleteFileVersion({
-				fileName: config.file.source.fileName
+				fileName: config.file.source.fileName,
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field fileId is missing');
@@ -39,7 +39,7 @@ describe('b2_delete_file_version', function(){
 			if(err){ return done(err); }
 			b2.deleteFileVersion({
 				fileName: config.file.source.fileName,
-				fileId: config.file.source.fileId
+				fileId: config.file.source.fileId,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -54,7 +54,7 @@ describe('b2_delete_file_version', function(){
 			if(err){ return done(err); }
 			b2.deleteFileVersion({
 				fileName: config.file.source.fileName,
-				fileId: config.file.source.fileId
+				fileId: config.file.source.fileId,
 			}, done);
 		});
 	});

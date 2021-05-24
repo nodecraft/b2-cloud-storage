@@ -12,24 +12,24 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field accountId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* list keys with valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_list_keys', {
-		accountId: config.auth.none.responseAccountId
+		accountId: config.auth.none.responseAccountId,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
 	/* list keys with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_list_keys', {
-		accountId: config.auth.all.responseAccountId
+		accountId: config.auth.all.responseAccountId,
 	}).matchHeader('authorization', config.auth.all.authToken).reply(function(){
 		return [
 			200,
@@ -39,11 +39,11 @@ module.exports = function(mocks, config){
 						keyName: config.auth.all.keyName,
 						applicationKeyId: config.auth.all.applicationKeyId,
 						capabilities: config.auth.all.capabilities,
-						accountId: config.auth.all.accountId
-					}
+						accountId: config.auth.all.accountId,
+					},
 				],
-				nextApplicationKeyId: undefined
-			}
+				nextApplicationKeyId: undefined,
+			},
 		];
 	});
 };

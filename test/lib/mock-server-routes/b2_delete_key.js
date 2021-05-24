@@ -13,24 +13,24 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field applicationKeyId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* delete key with valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_delete_key', {
-		applicationKeyId: config.auth.none.applicationKeyId
+		applicationKeyId: config.auth.none.applicationKeyId,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
 	/* delete key with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_delete_key', {
-		applicationKeyId: config.auth.buckets.applicationKeyId
+		applicationKeyId: config.auth.buckets.applicationKeyId,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			200,
@@ -41,8 +41,8 @@ module.exports = function(mocks, config){
 				accountId: config.auth.buckets.accountId,
 				expirationTimestamp: 1_536_964_279_000,
 				bucketId: config.bucketId,
-				namePrefix: ''
-			}
+				namePrefix: '',
+			},
 		];
 	});
 };

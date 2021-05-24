@@ -12,24 +12,24 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field fileId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* get file info with valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_get_file_info', {
-		fileId: config.file.source.fileId
+		fileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
 	/* get file info with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_get_file_info', {
-		fileId: config.file.source.fileId
+		fileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.all.authToken).reply(function(){
 		return [
 			200,
@@ -42,11 +42,11 @@ module.exports = function(mocks, config){
 				contentType: config.file.destination.contentType,
 				fileId: config.file.destination.fileId,
 				fileInfo: {
-					src_last_modified_millis: config.file.destination.fileInfo
+					src_last_modified_millis: config.file.destination.fileInfo,
 				},
 				fileName: config.file.destination.fileName,
-				uploadTimestamp: config.file.destination.uploadTimestamp
-			}
+				uploadTimestamp: config.file.destination.uploadTimestamp,
+			},
 		];
 	});
 };

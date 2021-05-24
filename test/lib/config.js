@@ -8,7 +8,7 @@ const config = {
 			applicationKey: 'mock-applicationKey-abcdefg',
 			responseAccountId: 'mock-responseAccountId-123456',
 			capabilities: ["listKeys", "writeKeys", "deleteKeys", "listBuckets", "writeBuckets", "deleteBuckets", "listFiles", "readFiles", "shareFiles", "writeFiles", "deleteFiles"],
-			authToken: 'mock-token-all'
+			authToken: 'mock-token-all',
 		},
 		buckets: {
 			keyName: 'mock-key-name-buckets',
@@ -17,7 +17,7 @@ const config = {
 			applicationKey: 'mock-applicationKey-buckets--abcdefg',
 			responseAccountId: 'mock-responseAccountId-buckets-123456',
 			capabilities: ["listBuckets", "writeBuckets", "deleteBuckets"],
-			authToken: 'mock-token-buckets'
+			authToken: 'mock-token-buckets',
 		},
 		none: { // technically not possible, but useful for testing
 			keyName: 'mock-key-name-none',
@@ -26,8 +26,8 @@ const config = {
 			applicationKey: 'mock-applicationKey-none--abcdefg',
 			responseAccountId: 'mock-responseAccountId-none-123456',
 			capabilities: [],
-			authToken: 'mock-token-none'
-		}
+			authToken: 'mock-token-none',
+		},
 	},
 	authHeaders: [],
 	bucketId: 'mock-bucket-id',
@@ -40,10 +40,10 @@ const config = {
 			contentType: "text/plain",
 			fileId: "4_zb2f6f21365e1d29f6c580f18_f10904e5ca06493a1_d20180914_m223119_c002_v0001094_t0002",
 			fileInfo: {
-				src_last_modified_millis: "1536964184056"
+				src_last_modified_millis: "1536964184056",
 			},
 			fileName: "testing.txt",
-			uploadTimestamp: 1_536_964_279_000
+			uploadTimestamp: 1_536_964_279_000,
 
 		},
 		destination: {
@@ -52,19 +52,19 @@ const config = {
 			contentType: "text/plain",
 			fileId: "4_zb2f6f21365e1d29f6c580f18_f10076875fe98d4af_d20180914_m223128_c002_v0001108_t0050",
 			fileInfo: {
-				src_last_modified_millis: "1536964200750"
+				src_last_modified_millis: "1536964200750",
 			},
 			fileName: "testing2.txt",
-			uploadTimestamp: 1_536_964_288_000
-		}
+			uploadTimestamp: 1_536_964_288_000,
+		},
 	},
 	responses: {
 		unauthorized: {
 			code: 'unauthorized',
 			message: '',
-			status: 401
-		}
-	}
+			status: 401,
+		},
+	},
 };
 // create and store auth headers for testing
 for(const authType in config.auth){

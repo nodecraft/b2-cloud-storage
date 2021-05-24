@@ -7,30 +7,30 @@ module.exports = function(mocks, config){
 
 	/* create bucket with valid headers and missing `capabilities` */
 	mocks.api.post('/b2api/v2/b2_create_key', {
-		accountId: config.auth.buckets.responseAccountId
+		accountId: config.auth.buckets.responseAccountId,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
 				code: 'bad_request',
 				message: 'required field capabilities is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* create key with valid headers and missing `keyName` */
 	mocks.api.post('/b2api/v2/b2_create_key', {
 		accountId: config.auth.buckets.responseAccountId,
-		capabilities: config.auth.buckets.capabilities
+		capabilities: config.auth.buckets.capabilities,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
 				code: 'bad_request',
 				message: 'required field keyName is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
@@ -38,11 +38,11 @@ module.exports = function(mocks, config){
 	mocks.api.post('/b2api/v2/b2_create_key', {
 		accountId: config.auth.none.responseAccountId,
 		capabilities: config.auth.none.capabilities,
-		keyName: config.auth.none.keyName
+		keyName: config.auth.none.keyName,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
@@ -50,7 +50,7 @@ module.exports = function(mocks, config){
 	mocks.api.post('/b2api/v2/b2_create_key', {
 		accountId: config.auth.buckets.responseAccountId,
 		capabilities: config.auth.buckets.capabilities,
-		keyName: config.auth.buckets.keyName
+		keyName: config.auth.buckets.keyName,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			200,
@@ -62,8 +62,8 @@ module.exports = function(mocks, config){
 				accountId: config.auth.buckets.accountId,
 				expirationTimestamp: 1_536_964_279_000,
 				bucketId: config.bucketId,
-				namePrefix: ''
-			}
+				namePrefix: '',
+			},
 		];
 	});
 };

@@ -24,7 +24,7 @@ describe('b2_list_file_versions', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.listFileVersions({
-				bucketId: config.bucketId
+				bucketId: config.bucketId,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -38,7 +38,7 @@ describe('b2_list_file_versions', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.listFileVersions({
-				bucketId: config.bucketId
+				bucketId: config.bucketId,
 			}, done);
 		});
 	});

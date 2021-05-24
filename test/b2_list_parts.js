@@ -24,7 +24,7 @@ describe('b2_list_parts', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.listParts({
-				fileId: config.file.source.fileId
+				fileId: config.file.source.fileId,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -38,7 +38,7 @@ describe('b2_list_parts', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.listParts({
-				fileId: config.file.source.fileId
+				fileId: config.file.source.fileId,
 			}, done);
 		});
 	});

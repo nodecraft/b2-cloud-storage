@@ -24,7 +24,7 @@ describe('b2_create_key', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.createKey({
-				capabilities: config.auth.buckets.capabilities
+				capabilities: config.auth.buckets.capabilities,
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field keyName is missing');
@@ -39,7 +39,7 @@ describe('b2_create_key', function(){
 			if(err){ return done(err); }
 			b2.createKey({
 				capabilities: config.auth.none.capabilities,
-				keyName: config.auth.none.keyName
+				keyName: config.auth.none.keyName,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -54,7 +54,7 @@ describe('b2_create_key', function(){
 			if(err){ return done(err); }
 			b2.createKey({
 				capabilities: config.auth.buckets.capabilities,
-				keyName: config.auth.buckets.keyName
+				keyName: config.auth.buckets.keyName,
 			}, done);
 		});
 	});

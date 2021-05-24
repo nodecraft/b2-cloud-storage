@@ -7,30 +7,30 @@ module.exports = function(mocks, config){
 
 	/* create bucket with valid headers and missing `bucketName` */
 	mocks.api.post('/b2api/v2/b2_create_bucket', {
-		accountId: config.auth.buckets.responseAccountId
+		accountId: config.auth.buckets.responseAccountId,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
 				code: 'bad_request',
 				message: 'required field bucketName is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* create bucket with valid headers and missing `bucketType` */
 	mocks.api.post('/b2api/v2/b2_create_bucket', {
 		accountId: config.auth.buckets.responseAccountId,
-		bucketName: config.bucketName
+		bucketName: config.bucketName,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			400,
 			{
 				code: 'bad_request',
 				message: 'required field bucketType is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
@@ -38,11 +38,11 @@ module.exports = function(mocks, config){
 	mocks.api.post('/b2api/v2/b2_create_bucket', {
 		accountId: config.auth.none.responseAccountId,
 		bucketName: config.bucketName,
-		bucketType: config.bucketType
+		bucketType: config.bucketType,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
@@ -50,7 +50,7 @@ module.exports = function(mocks, config){
 	mocks.api.post('/b2api/v2/b2_create_bucket', {
 		accountId: config.auth.buckets.responseAccountId,
 		bucketName: config.bucketName,
-		bucketType: config.bucketType
+		bucketType: config.bucketType,
 	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
 		return [
 			200,
@@ -62,8 +62,8 @@ module.exports = function(mocks, config){
 				bucketType: config.bucketType,
 				corsRules: [],
 				lifecycleRules: [],
-				revision: 2
-			}
+				revision: 2,
+			},
 		];
 	});
 };

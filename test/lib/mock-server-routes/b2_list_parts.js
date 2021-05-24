@@ -12,24 +12,24 @@ module.exports = function(mocks, config){
 			{
 				code: 'bad_request',
 				message: 'required field fileId is missing',
-				status: 400
-			}
+				status: 400,
+			},
 		];
 	});
 
 	/* list parts with valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_list_parts', {
-		fileId: config.file.source.fileId
+		fileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
 		return [
 			401,
-			config.responses.unauthorized
+			config.responses.unauthorized,
 		];
 	});
 
 	/* list parts with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_list_parts', {
-		fileId: config.file.source.fileId
+		fileId: config.file.source.fileId,
 	}).matchHeader('authorization', config.auth.all.authToken).reply(function(){
 		return [
 			200,
@@ -41,17 +41,17 @@ module.exports = function(mocks, config){
 						contentSha1: config.file.source.contentLength,
 						fileId: config.file.source.fileId,
 						partNumber: 1,
-						uploadTimestamp: config.file.source.fileId
+						uploadTimestamp: config.file.source.fileId,
 					},
 					{
 						contentLength: config.file.destination.fileId,
 						contentSha1: config.file.destination.contentLength,
 						fileId: config.file.destination.fileId,
 						partNumber: 2,
-						uploadTimestamp: config.file.destination.fileId
-					}
-				]
-			}
+						uploadTimestamp: config.file.destination.fileId,
+					},
+				],
+			},
 		];
 	});
 };

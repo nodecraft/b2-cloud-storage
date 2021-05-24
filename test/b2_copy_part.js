@@ -24,7 +24,7 @@ describe('b2_copy_part', function(){
 		b2.authorize((err) => {
 			if(err){ return done(err); }
 			b2.copyFilePart({
-				sourceFileId: config.file.source.fileId
+				sourceFileId: config.file.source.fileId,
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field largeFileId is missing');
@@ -38,7 +38,7 @@ describe('b2_copy_part', function(){
 			if(err){ return done(err); }
 			b2.copyFilePart({
 				sourceFileId: config.file.source.fileId,
-				largeFileId: config.file.destination.fileId
+				largeFileId: config.file.destination.fileId,
 			}, function(err){
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field partNumber is missing');
@@ -54,7 +54,7 @@ describe('b2_copy_part', function(){
 			b2.copyFilePart({
 				sourceFileId: config.file.source.fileId,
 				largeFileId: config.file.destination.fileId,
-				partNumber: 1
+				partNumber: 1,
 			}, function(err, results){
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
@@ -70,7 +70,7 @@ describe('b2_copy_part', function(){
 			b2.copyFilePart({
 				sourceFileId: config.file.source.fileId,
 				largeFileId: config.file.destination.fileId,
-				partNumber: 1
+				partNumber: 1,
 			}, done);
 		});
 	});

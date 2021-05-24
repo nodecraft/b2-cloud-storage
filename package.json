@@ -1,6 +1,6 @@
 {
 	"name": "b2-cloud-storage",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "Backblaze B2 Cloud Storage API Client",
 	"keywords": [
 		"b2",
@@ -19,11 +19,11 @@
 	},
 	"license": "MIT",
 	"author": "Nodecraft Inc.",
+	"main": "index.js",
 	"files": [
 		"index.js",
 		"docs.md"
 	],
-	"main": "index.js",
 	"scripts": {
 		"coverage": "nyc report --reporter=lcov",
 		"docs": "jsdoc2md index.js > docs.md",
@@ -36,18 +36,18 @@
 	},
 	"dependencies": {
 		"async": "^3.2.0",
-		"lodash": "^4.17.20",
-		"request": "npm:postman-request@^2.88.1-postman.28"
+		"lodash": "^4.17.21",
+		"request": "npm:postman-request@^2.88.1-postman.30"
 	},
 	"devDependencies": {
-		"eslint": "^7.17.0",
-		"eslint-config-nodecraft": "^7.1.0",
-		"eslint-plugin-json": "^2.1.2",
+		"@nodecraft/eslint-config": "^8.0.1",
+		"eslint": "^7.27.0",
+		"eslint-plugin-json": "^3.0.0",
 		"eslint-plugin-node": "^11.1.0",
-		"eslint-plugin-unicorn": "^25.0.1",
-		"jsdoc-to-markdown": "^6.0.1",
-		"mocha": "^8.2.1",
-		"nock": "^13.0.5",
+		"eslint-plugin-unicorn": "^32.0.1",
+		"jsdoc-to-markdown": "^7.0.1",
+		"mocha": "^8.4.0",
+		"nock": "^13.0.11",
 		"nyc": "15.1.0"
 	},
 	"engines": {
