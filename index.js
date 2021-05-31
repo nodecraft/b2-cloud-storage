@@ -119,6 +119,10 @@ const b2CloudStorage = class {
      * @returns {object} Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`
      */
 	uploadFile(filename, data, callback = function(){}){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
+
 		// todo: check if allowed (access) to upload files
 		if(data.partSize < 5_000_000){
 			return callback(new Error('partSize can not be lower than 5MB'));
@@ -325,6 +329,10 @@ const b2CloudStorage = class {
      * @returns {object} Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`
      */
 	copyFile(data, callback){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
+
 		const self = this;
 
 		let returnData = null;
@@ -429,6 +437,9 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	createBucket(data, callback){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
 		if(!data.accountId){
 			data.accountId = this.authData.accountId;
 		}
@@ -452,6 +463,9 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	updateBucket(data, callback){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
 		if(!data.accountId){
 			data.accountId = this.authData.accountId;
 		}
@@ -470,6 +484,9 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	deleteBucket(data, callback){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
 		if(typeof(data) === 'string'){
 			data = {
 				bucketId: data,
@@ -533,6 +550,9 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	listKeys(data, callback){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
 		if(!callback && data){
 			callback = data;
 			data = {};
@@ -559,6 +579,9 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	createKey(data, callback){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
 		if(!data.accountId){
 			data.accountId = this.authData.accountId;
 		}
@@ -859,6 +882,9 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	copyLargeFile(data, callback){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
 		const self = this;
 		const info = {
 			totalErrors: 0,
@@ -1182,6 +1208,9 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	uploadFileLarge(filename, data, callback = function(){}){
+		if(!this.authData){
+			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
+		}
 		const self = this;
 		const info = {
 			upload_urls: {},
