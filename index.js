@@ -766,7 +766,7 @@ const b2CloudStorage = class {
 				if(err){
 					return callback(err, null, res);
 				}
-				if(res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
+				if(res.headers['content-type'] && res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
 					try{
 						body = JSON.parse(body);
 					}catch{
