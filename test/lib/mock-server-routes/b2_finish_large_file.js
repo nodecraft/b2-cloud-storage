@@ -1,3 +1,3 @@
 'use strict';
 // TODO
-module.exports = function(){};
+module.exports = function() {};

@@ -1,13 +1,13 @@
 'use strict';
-const assert = require('assert');
+const assert = require('node:assert');
 const b2CloudStorage = require('..');
 
 const config = require('./lib/config.js');
 
 require('./lib/mock-server.js'); // mock b2 api server
 
-describe('b2_cancel_large_file', function(){
-	it('fails with missing `fileId', function(done){
+describe('b2_cancel_large_file', function() {
+	it('fails with missing `fileId', function(done) {
 		const b2 = new b2CloudStorage({
 			auth: {
 				accountId: config.auth.all.accountId,
@@ -15,10 +15,10 @@ describe('b2_cancel_large_file', function(){
 			},
 		});
 		b2.authorize((err) => {
-			if(err){
+			if(err) {
 				return done(err);
 			}
-			b2.cancelLargeFile({}, function(err){
+			b2.cancelLargeFile({}, function(err) {
 				assert(err instanceof Error);
 				assert.strictEqual(err.message, 'required field fileId is missing');
 				done();
@@ -26,7 +26,7 @@ describe('b2_cancel_large_file', function(){
 		});
 	});
 
-	it('fails with credentials that don\'t have valid capabilities', function(done){
+	it('fails with credentials that don\'t have valid capabilities', function(done) {
 		const b2 = new b2CloudStorage({
 			auth: {
 				accountId: config.auth.none.accountId,
@@ -34,12 +34,12 @@ describe('b2_cancel_large_file', function(){
 			},
 		});
 		b2.authorize((err) => {
-			if(err){
+			if(err) {
 				return done(err);
 			}
 			b2.cancelLargeFile({
 				fileId: config.file.source.fileId,
-			}, function(err, results){
+			}, function(err, results) {
 				assert(err instanceof Error);
 				assert.strictEqual(results.code, 'unauthorized');
 				done();
@@ -47,7 +47,7 @@ describe('b2_cancel_large_file', function(){
 		});
 	});
 
-	it('succeeds with valid credentials and params', function(done){
+	it('succeeds with valid credentials and params', function(done) {
 		const b2 = new b2CloudStorage({
 			auth: {
 				accountId: config.auth.all.accountId,
@@ -55,7 +55,7 @@ describe('b2_cancel_large_file', function(){
 			},
 		});
 		b2.authorize((err) => {
-			if(err){
+			if(err) {
 				return done(err);
 			}
 			b2.cancelLargeFile({

@@ -1,13 +1,13 @@
 'use strict';
-module.exports = function(mocks, config){
+module.exports = function(mocks, config) {
 	/* delete key with invalid headers */
-	mocks.api.post('/b2api/v2/b2_delete_key').matchHeader('authorization', function(val){
+	mocks.api.post('/b2api/v2/b2_delete_key').matchHeader('authorization', function(val) {
 		return val !== config.auth.all.authToken && val !== config.auth.buckets.authToken && val !== config.auth.none.authToken;
 	}).reply(401, {code: 'bad_auth_token', message: '', status: 401});
 
 
 	/* delete key with valid headers and missing `applicationKeyId` */
-	mocks.api.post('/b2api/v2/b2_delete_key', body => !body.applicationKeyId).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
+	mocks.api.post('/b2api/v2/b2_delete_key', body => !body.applicationKeyId).matchHeader('authorization', config.auth.buckets.authToken).reply(function() {
 		return [
 			400,
 			{
@@ -21,7 +21,7 @@ module.exports = function(mocks, config){
 	/* delete key with valid headers and valid params, but bad permissions */
 	mocks.api.post('/b2api/v2/b2_delete_key', {
 		applicationKeyId: config.auth.none.applicationKeyId,
-	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
+	}).matchHeader('authorization', config.auth.none.authToken).reply(function() {
 		return [
 			401,
 			config.responses.unauthorized,
@@ -31,7 +31,7 @@ module.exports = function(mocks, config){
 	/* delete key with valid headers and valid params, and good permissions */
 	mocks.api.post('/b2api/v2/b2_delete_key', {
 		applicationKeyId: config.auth.buckets.applicationKeyId,
-	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function(){
+	}).matchHeader('authorization', config.auth.buckets.authToken).reply(function() {
 		return [
 			200,
 			{

@@ -1,9 +1,9 @@
 /* eslint-disable unicorn/explicit-length-check */
 'use strict';
-const url = require('url');
-const crypto = require('crypto');
-const os = require('os');
-const fs = require('fs');
+const url = require('node:url');
+const crypto = require('node:crypto');
+const os = require('node:os');
+const fs = require('node:fs');
 
 const request = require('request');
 const _ = require('lodash');
@@ -30,31 +30,31 @@ const b2CloudStorage = class {
      * @param  {number} options.maxReauthAttempts Maximum times this library will try to reauthenticate if an auth token expires, before assuming failure.
      * @return {undefined}
      */
-	constructor(options){
-		if(!options || !options.auth){
+	constructor(options) {
+		if(!options || !options.auth) {
 			throw new Error('Missing authentication object');
 		}
-		if(!options.auth.accountId){
+		if(!options.auth.accountId) {
 			throw new Error('Missing authentication accountId');
 		}
-		if(!options.auth.applicationKey){
+		if(!options.auth.applicationKey) {
 			throw new Error('Missing authentication applicationKey');
 		}
 
 		this.maxSmallFileSize = options.maxSmallFileSize || 100_000_000; // default to 100MB
-		if(this.maxSmallFileSize > 5_000_000_000){
+		if(this.maxSmallFileSize > 5_000_000_000) {
 			throw new Error('maxSmallFileSize can not exceed 5GB');
 		}
-		if(this.maxSmallFileSize < 100_000_000){
+		if(this.maxSmallFileSize < 100_000_000) {
 			throw new Error('maxSmallFileSize can not be less than 100MB');
 		}
 
 		this.maxCopyWorkers = options.maxCopyWorkers || (os.cpus().length * 5); // default to the number of available CPUs * 5 (web requests are cheap)
 		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 5GB
-		if(this.maxSmallCopyFileSize > 5_000_000_000){
+		if(this.maxSmallCopyFileSize > 5_000_000_000) {
 			throw new Error('maxSmallFileSize can not exceed 5GB');
 		}
-		if(this.maxSmallCopyFileSize < 5_000_000){
+		if(this.maxSmallCopyFileSize < 5_000_000) {
 			throw new Error('maxSmallFileSize can not be less than 5MB');
 		}
 
@@ -71,7 +71,7 @@ const b2CloudStorage = class {
      * @param {string} fileName File name for upload
      * @returns {string} Returns a safe and URL encoded file name for upload
      */
-	static getUrlEncodedFileName(fileName){
+	static getUrlEncodedFileName(fileName) {
 		return fileName.split('/').map(component => encodeURIComponent(component)).join('/');
 	}
 
@@ -79,7 +79,7 @@ const b2CloudStorage = class {
      * `b2_authorize_account` method, required before calling any B2 API routes.
      * @param {Function} [callback]
      */
-	authorize(callback){
+	authorize(callback) {
 		this.request({
 			auth: {
 				user: this.auth.accountId,
@@ -88,7 +88,7 @@ const b2CloudStorage = class {
 			apiUrl: 'https://api.backblazeb2.com',
 			url: 'b2_authorize_account',
 		}, (err, results) => {
-			if(err){
+			if(err) {
 				return callback(err);
 			}
 			this.authData = results;
@@ -118,13 +118,13 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      * @returns {object} Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`
      */
-	uploadFile(filename, data, callback = function(){}){
-		if(!this.authData){
+	uploadFile(filename, data, callback = function() {}) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
 
 		// todo: check if allowed (access) to upload files
-		if(data.partSize < 5_000_000){
+		if(data.partSize < 5_000_000) {
 			return callback(new Error('partSize can not be lower than 5MB'));
 		}
 
@@ -134,14 +134,14 @@ const b2CloudStorage = class {
 
 		let fileFuncs = {};
 		const returnFuncs = {
-			cancel: function(){
+			cancel: function() {
 				cancel = true;
-				if(fileFuncs.cancel){
+				if(fileFuncs.cancel) {
 					return fileFuncs.cancel();
 				}
 			},
-			progress: function(){
-				if(fileFuncs.progress){
+			progress: function() {
+				if(fileFuncs.progress) {
 					return fileFuncs.progress();
 				}
 				return {
@@ -150,35 +150,35 @@ const b2CloudStorage = class {
 					bytesTotal: data.size || 0,
 				};
 			},
-			info: function(){
-				if(fileFuncs.info){
+			info: function() {
+				if(fileFuncs.info) {
 					return fileFuncs.info();
 				}
 				return null;
 			},
 		};
 		async.series([
-			function(cb){
-				if(cancel){
+			function(cb) {
+				if(cancel) {
 					return cb(new Error('B2 upload canceled'));
 				}
-				if(data.hash){
+				if(data.hash) {
 					return cb();
 				}
-				self.getFileHash(filename, function(err, hash){
-					if(err){
+				self.getFileHash(filename, function(err, hash) {
+					if(err) {
 						return cb(err);
 					}
 					data.hash = hash;
 					return cb();
 				});
 			},
-			function(cb){
-				if(cancel){
+			function(cb) {
+				if(cancel) {
 					return cb(new Error('B2 upload canceled'));
 				}
-				self.getStat(filename, function(err, stat){
-					if(err){
+				self.getStat(filename, function(err, stat) {
+					if(err) {
 						return cb(err);
 					}
 					data.stat = stat;
@@ -187,18 +187,18 @@ const b2CloudStorage = class {
 					return cb();
 				});
 			},
-		], function(err){
-			if(cancel){
+		], function(err) {
+			if(cancel) {
 				return callback(new Error('B2 upload canceled'));
 			}
-			if(err){
+			if(err) {
 				return callback(err);
 			}
 			// properly encode file name for upload
-			if(data.fileName){
+			if(data.fileName) {
 				data.fileName = b2CloudStorage.getUrlEncodedFileName(data.fileName);
 			}
-			if(smallFile){
+			if(smallFile) {
 				fileFuncs = self.uploadFileSmall(filename, data, callback);
 				return;
 			}
@@ -215,7 +215,7 @@ const b2CloudStorage = class {
      * @param {Number} [data.maxPartCount] The maximum number of parts to return from this call. The default value is 100, and the maximum allowed is 1000.
      * @param {Function} [callback]
      */
-	listParts(data, callback){
+	listParts(data, callback) {
 		return this.request({
 			url: 'b2_list_parts',
 			method: 'POST',
@@ -232,7 +232,7 @@ const b2CloudStorage = class {
      * @param {Number} [data.maxFileCount] The maximum number of files to return from this call. The default value is 100, and the maximum allowed is 100.
      * @param {Function} [callback]
      */
-	listUnfinishedLargeFiles(data, callback){
+	listUnfinishedLargeFiles(data, callback) {
 		return this.request({
 			url: 'b2_list_unfinished_large_files',
 			method: 'POST',
@@ -246,7 +246,7 @@ const b2CloudStorage = class {
      * @param {String} data.fileId The ID returned by b2_start_large_file.
      * @param {Function} [callback]
      */
-	cancelLargeFile(data, callback){
+	cancelLargeFile(data, callback) {
 		return this.request({
 			url: 'b2_cancel_large_file',
 			method: 'POST',
@@ -259,7 +259,7 @@ const b2CloudStorage = class {
      * @param {String} fileId The ID of the file, as returned by `b2_upload_file`, `b2_hide_file`, `b2_list_file_names`, or `b2_list_file_versions`.
      * @param {Function} [callback]
      */
-	getFileInfo(fileId, callback){
+	getFileInfo(fileId, callback) {
 		return this.request({
 			url: 'b2_get_file_info',
 			method: 'POST',
@@ -277,12 +277,12 @@ const b2CloudStorage = class {
      * @param {Array} [data.bucketTypes] One of: "allPublic", "allPrivate", "snapshot", or other values added in the future. "allPublic" means that anybody can download the files is the bucket; "allPrivate" means that you need an authorization token to download them; "snapshot" means that it's a private bucket containing snapshots created on the B2 web site.
      * @param {Function} [callback]
      */
-	listBuckets(data, callback){
-		if(!callback && data){
+	listBuckets(data, callback) {
+		if(!callback && data) {
 			callback = data;
 			data = {};
 		}
-		if(!data.accountId){
+		if(!data.accountId) {
 			data.accountId = this.authData.accountId;
 		}
 		return this.request({
@@ -303,7 +303,7 @@ const b2CloudStorage = class {
      * @param {Object} [data.range] The range of bytes to copy. If not provided, the whole source file will be copied.
      * @param {Function} [callback]
      */
-	copyFilePart(data, callback){
+	copyFilePart(data, callback) {
 		return this.request({
 			url: 'b2_copy_part',
 			method: 'POST',
@@ -328,8 +328,8 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      * @returns {object} Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`
      */
-	copyFile(data, callback){
-		if(!this.authData){
+	copyFile(data, callback) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
 
@@ -340,14 +340,14 @@ const b2CloudStorage = class {
 		let fileFuncs = {};
 
 		const returnFuncs = {
-			cancel: function(){
+			cancel: function() {
 				cancel = true;
-				if(fileFuncs.cancel){
+				if(fileFuncs.cancel) {
 					return fileFuncs.cancel();
 				}
 			},
-			progress: function(){
-				if(fileFuncs.progress){
+			progress: function() {
+				if(fileFuncs.progress) {
 					return fileFuncs.progress();
 				}
 				return {
@@ -356,8 +356,8 @@ const b2CloudStorage = class {
 					bytesTotal: data.size || 0,
 				};
 			},
-			info: function(){
-				if(fileFuncs.info){
+			info: function() {
+				if(fileFuncs.info) {
 					return fileFuncs.info();
 				}
 				return null;
@@ -365,15 +365,15 @@ const b2CloudStorage = class {
 		};
 
 		async.series([
-			function(cb){
-				if(cancel){
+			function(cb) {
+				if(cancel) {
 					return cb(new Error('B2 copy canceled'));
 				}
-				if(data.size && data.hash && data.destinationBucketId && data.contentType){
+				if(data.size && data.hash && data.destinationBucketId && data.contentType) {
 					return cb();
 				}
-				self.getFileInfo(data.sourceFileId, function(err, results){
-					if(err){
+				self.getFileInfo(data.sourceFileId, function(err, results) {
+					if(err) {
 						return cb(err);
 					}
 					data.size = data.size || results.contentLength;
@@ -383,13 +383,13 @@ const b2CloudStorage = class {
 					return cb();
 				});
 			},
-			function(cb){
-				if(cancel){
+			function(cb) {
+				if(cancel) {
 					return cb(new Error('B2 copy canceled'));
 				}
-				if(data.size > self.maxSmallCopyFileSize){
-					fileFuncs = self.copyLargeFile(data, function(err, results){
-						if(err){
+				if(data.size > self.maxSmallCopyFileSize) {
+					fileFuncs = self.copyLargeFile(data, function(err, results) {
+						if(err) {
 							return cb(err);
 						}
 						returnData = results;
@@ -405,19 +405,19 @@ const b2CloudStorage = class {
 					'metadataDirective',
 				];
 				// only required for metadata replace
-				if(data.metadataDirective === 'REPLACE'){
+				if(data.metadataDirective === 'REPLACE') {
 					fields.push('contentType', 'fileInfo');
 				}
-				fileFuncs = self.copySmallFile(_.pick(data, fields), function(err, results){
-					if(err){
+				fileFuncs = self.copySmallFile(_.pick(data, fields), function(err, results) {
+					if(err) {
 						return cb(err);
 					}
 					returnData = results;
 					return cb();
 				});
 			},
-		], function(err){
-			if(err){
+		], function(err) {
+			if(err) {
 				return callback(err);
 			}
 			return callback(null, returnData);
@@ -436,11 +436,11 @@ const b2CloudStorage = class {
      * @param {Array} [data.lifecycleRules] The initial list (a JSON array) of lifecycle rules for this bucket. Structure defined below. See Lifecycle Rules.
      * @param {Function} [callback]
      */
-	createBucket(data, callback){
-		if(!this.authData){
+	createBucket(data, callback) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
-		if(!data.accountId){
+		if(!data.accountId) {
 			data.accountId = this.authData.accountId;
 		}
 		return this.request({
@@ -462,11 +462,11 @@ const b2CloudStorage = class {
      * @param {Array} [data.ifRevisionIs] When set, the update will only happen if the revision number stored in the B2 service matches the one passed in. This can be used to avoid having simultaneous updates make conflicting changes.
      * @param {Function} [callback]
      */
-	updateBucket(data, callback){
-		if(!this.authData){
+	updateBucket(data, callback) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
-		if(!data.accountId){
+		if(!data.accountId) {
 			data.accountId = this.authData.accountId;
 		}
 		return this.request({
@@ -483,16 +483,16 @@ const b2CloudStorage = class {
      * @param {String} [data.accountId] The ID of your account. When unset will use the `b2_authorize` results `accountId`.
      * @param {Function} [callback]
      */
-	deleteBucket(data, callback){
-		if(!this.authData){
+	deleteBucket(data, callback) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
-		if(typeof(data) === 'string'){
+		if(typeof(data) === 'string') {
 			data = {
 				bucketId: data,
 			};
 		}
-		if(!data.accountId){
+		if(!data.accountId) {
 			data.accountId = this.authData.accountId;
 		}
 		return this.request({
@@ -514,7 +514,7 @@ const b2CloudStorage = class {
      * @param {String} [data.delimiter] files returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders.
      * @param {Function} [callback]
      */
-	listFileNames(data, callback){
+	listFileNames(data, callback) {
 		return this.request({
 			url: 'b2_list_file_names',
 			method: 'POST',
@@ -533,7 +533,7 @@ const b2CloudStorage = class {
      * @param {String} [data.delimiter] files returned will be limited to those within the top folder, or any one subfolder. Defaults to NULL. Folder names will also be returned. The delimiter character will be used to "break" file names into folders.
      * @param {Function} [callback]
      */
-	listFileVersions(data, callback){
+	listFileVersions(data, callback) {
 		return this.request({
 			url: 'b2_list_file_versions',
 			method: 'POST',
@@ -549,15 +549,15 @@ const b2CloudStorage = class {
      * @param {String} [data.startApplicationKeyId] The first key to return. Used when a query hits the maxKeyCount, and you want to get more. Set to the value returned as the nextApplicationKeyId in the previous query.
      * @param {Function} [callback]
      */
-	listKeys(data, callback){
-		if(!this.authData){
+	listKeys(data, callback) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
-		if(!callback && data){
+		if(!callback && data) {
 			callback = data;
 			data = {};
 		}
-		if(!data.accountId){
+		if(!data.accountId) {
 			data.accountId = this.authData.accountId;
 		}
 		return this.request({
@@ -578,11 +578,11 @@ const b2CloudStorage = class {
      * @param {String} [data.namePrefix] When present, restricts access to files whose names start with the prefix. You must set `bucketId` when setting this.
      * @param {Function} [callback]
      */
-	createKey(data, callback){
-		if(!this.authData){
+	createKey(data, callback) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
-		if(!data.accountId){
+		if(!data.accountId) {
 			data.accountId = this.authData.accountId;
 		}
 		return this.request({
@@ -597,7 +597,7 @@ const b2CloudStorage = class {
      * @param {String} applicationKeyId The key to delete.
      * @param {Function} [callback]
      */
-	deleteKey(applicationKeyId, callback){
+	deleteKey(applicationKeyId, callback) {
 		return this.request({
 			url: 'b2_delete_key',
 			method: 'POST',
@@ -616,7 +616,7 @@ const b2CloudStorage = class {
      * @param {String} data.fileId The ID of the file, as returned by `b2_upload_file`, `b2_list_file_names`, or `b2_list_file_versions`.
      * @param {Function} [callback]
      */
-	deleteFileVersion(data, callback){
+	deleteFileVersion(data, callback) {
 		return this.request({
 			url: 'b2_delete_file_version',
 			method: 'POST',
@@ -635,8 +635,8 @@ const b2CloudStorage = class {
      * @param {String} [data.b2ContentDisposition] If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded.
      * @param {Function} [callback]
      */
-	downloadFileById(data, callback){
-		if(!callback && typeof(callback) === 'function'){
+	downloadFileById(data, callback) {
+		if(!callback && typeof(callback) === 'function') {
 			callback = data;
 			data = {};
 		}
@@ -650,13 +650,13 @@ const b2CloudStorage = class {
 				fileId: data.fileId,
 			},
 		};
-		if(data.Authorization){
+		if(data.Authorization) {
 			requestData.headers.Authorization = data.Authorization;
 		}
-		if(data.Range){
+		if(data.Range) {
 			requestData.headers.Range = data.Range;
 		}
-		if(data.b2ContentDisposition){
+		if(data.b2ContentDisposition) {
 			requestData.headers.b2ContentDisposition = data.b2ContentDisposition;
 		}
 		return this.request(requestData, callback);
@@ -673,20 +673,20 @@ const b2CloudStorage = class {
      * @param {String} [data.b2ContentDisposition] If this is present, B2 will use it as the value of the 'Content-Disposition' header, overriding any 'b2-content-disposition' specified when the file was uploaded.
      * @param {Function} [callback]
      */
-	downloadFileByName(data, callback){
+	downloadFileByName(data, callback) {
 		const requestData = {
 			apiUrl: `${this.downloadUrl}/file/${data.bucket}/${data.fileName}`,
 			json: false,
 			appendPath: false,
 			headers: {},
 		};
-		if(data.Authorization){
+		if(data.Authorization) {
 			requestData.headers.Authorization = data.Authorization;
 		}
-		if(data.Range){
+		if(data.Range) {
 			requestData.headers.Range = data.Range;
 		}
-		if(data.b2ContentDisposition){
+		if(data.b2ContentDisposition) {
 			requestData.headers.b2ContentDisposition = data.b2ContentDisposition;
 		}
 		return this.request(requestData, callback);
@@ -701,7 +701,7 @@ const b2CloudStorage = class {
      * @param {Number} [data.b2ContentDisposition] If this is present, download requests using the returned authorization must include the same value for b2ContentDisposition. The value must match the grammar specified in RFC 6266 (except that parameter names that contain an '*' are not allowed).
      * @param {Function} [callback]
      */
-	getDownloadAuthorization(data, callback){
+	getDownloadAuthorization(data, callback) {
 		return this.request({
 			url: 'b2_get_download_authorization',
 			method: 'POST',
@@ -716,7 +716,7 @@ const b2CloudStorage = class {
      * @param {String} data.fileName The name of the file to hide.
      * @param {Function} [callback]
      */
-	hideFile(data, callback){
+	hideFile(data, callback) {
 		return this.request({
 			url: 'b2_hide_file',
 			method: 'POST',
@@ -732,10 +732,10 @@ const b2CloudStorage = class {
      * @param {boolean} data.apiUrl (internal) Full URL path or hostname to replace. Most useful when combined with `appendPath`.
      * @param {Function} callback [description]
      */
-	request(data, callback){
+	request(data, callback) {
 		const apiUrl = new url.URL(data.apiUrl || this.url);
 
-		if(data.appendPath !== false){
+		if(data.appendPath !== false) {
 			apiUrl.pathname += `b2api/${this.version}/${data.url}`;
 		}
 		const requestData = _.defaults(data, {
@@ -745,28 +745,28 @@ const b2CloudStorage = class {
 		});
 		requestData.url = apiUrl.toString();
 		// if auth data is set from `authorize` function and we haven't overridden it via `data.auth` or request headers, set it for this request
-		if(this.authData && !data.auth && !requestData.headers.Authorization){
+		if(this.authData && !data.auth && !requestData.headers.Authorization) {
 			requestData.headers.Authorization = this.authData.authorizationToken;
 		}
 		requestData.headers.Accept = 'application/json';
-		if(!requestData.headers.Authorization && !requestData.auth){
+		if(!requestData.headers.Authorization && !requestData.auth) {
 			return callback(new Error('Not yet authorised. Call `.authorize` before running any functions.'));
 		}
 		// default user agent to package version and node version if not already set
-		if(!requestData.headers['User-Agent']){
+		if(!requestData.headers['User-Agent']) {
 			requestData.headers['User-Agent'] = `b2-cloud-storage/${packageVersion}+node/${nodeVersion}`;
 		}
 		let reqCount = 0;
 		const doRequest = () => {
-			if(reqCount >= this.maxReauthAttempts){
+			if(reqCount >= this.maxReauthAttempts) {
 				return callback(new Error('Auth token expired, and unable to re-authenticate to acquire new token.'));
 			}
 			reqCount++;
 			return request(requestData, (err, res, body) => {
-				if(err){
+				if(err) {
 					return callback(err, null, res);
 				}
-				if(res.headers['content-type'] && res.headers['content-type'].includes('application/json') && typeof(body) === 'string'){
+				if(res.headers['content-type'] && res.headers['content-type'].includes('application/json') && typeof(body) === 'string') {
 					try{
 						body = JSON.parse(body);
 					}catch{
@@ -774,25 +774,25 @@ const b2CloudStorage = class {
 					}
 				}
 				// auth expired, re-authorize and then make request again
-				if(res.statusCode === 401 && body && body.code === 'expired_auth_token'){
+				if(res.statusCode === 401 && body && body.code === 'expired_auth_token') {
 					return this.authorize(doRequest);
 				}
-				if(res.statusCode === 403 || (body && body.code === 'storage_cap_exceeded')){
+				if(res.statusCode === 403 || (body && body.code === 'storage_cap_exceeded')) {
 					return callback(new Error('B2 Cap Exceeded. Check your Backblaze account for more details.'), body, res);
 				}
 				// todo: handle more response codes.
-				if(res.statusCode !== 200){
+				if(res.statusCode !== 200) {
 					let error = null;
-					if(typeof(body) === 'string'){
+					if(typeof(body) === 'string') {
 						error = new Error(body);
 					}
-					if(body && body.code && !body.message){
+					if(body && body.code && !body.message) {
 						error = new Error('API returned error code: ' + body.code);
 					}
-					if(body && body.message){
+					if(body && body.message) {
 						error = new Error(body.message);
 					}
-					if(!error){
+					if(!error) {
 						error = new Error('Invalid response from API.');
 					}
 					return callback(error, body, res);
@@ -809,11 +809,11 @@ const b2CloudStorage = class {
      * @param {Stream} fileStream File stream from `fs.readFileStream`.
      * @param {Function} [callback]
      */
-	getHash(fileStream, callback){
+	getHash(fileStream, callback) {
 		const hash = crypto.createHash('sha1');
-		fileStream.on('data', function(chunk){
+		fileStream.on('data', function(chunk) {
 			hash.update(chunk);
-		}).on('error', err => callback(err)).on('end', function(){
+		}).on('error', err => callback(err)).on('end', function() {
 			return callback(null, hash.digest('hex'));
 		});
 	}
@@ -824,7 +824,7 @@ const b2CloudStorage = class {
      * @param {String} Path to filename to get sha1 hash.
      * @param {Function} [callback]
      */
-	getFileHash(filename, callback){
+	getFileHash(filename, callback) {
 		return this.getHash(fs.createReadStream(filename), callback);
 	}
 
@@ -834,7 +834,7 @@ const b2CloudStorage = class {
      * @param {String} Path to filename to get file stats.
      * @param {Function} [callback]
      */
-	getStat(filename, callback){
+	getStat(filename, callback) {
 		return fs.stat(filename, callback);
 	}
 
@@ -851,7 +851,7 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      * @returns {object} Returns an object with 1 helper method: `cancel()`
      */
-	copySmallFile(data, callback){
+	copySmallFile(data, callback) {
 		const req = this.request({
 			url: 'b2_copy_file',
 			method: 'POST',
@@ -860,7 +860,7 @@ const b2CloudStorage = class {
 
 		// If we had a progress and info we could return those as well
 		return {
-			cancel: function(){
+			cancel: function() {
 				req.abort();
 			},
 		};
@@ -881,8 +881,8 @@ const b2CloudStorage = class {
      * @param {Object} [data.fileInfo] Must only be supplied if the metadataDirective is REPLACE. This field stores the metadata that will be stored with the file.
      * @param {Function} [callback]
      */
-	copyLargeFile(data, callback){
-		if(!this.authData){
+	copyLargeFile(data, callback) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
 		const self = this;
@@ -892,7 +892,7 @@ const b2CloudStorage = class {
 
 		let interval = null;
 		async.series([
-			function(cb){
+			function(cb) {
 				self.request({
 					url: 'b2_start_large_file',
 					method: 'POST',
@@ -907,14 +907,14 @@ const b2CloudStorage = class {
 						}),
 					},
 				}, (err, results) => {
-					if(err){
+					if(err) {
 						return cb(err);
 					}
 					info.fileId = results.fileId;
 					return cb();
 				});
 			},
-			function(cb){
+			function(cb) {
 				// todo: maybe tweak recommendedPartSize if the total number of chunks exceeds the total backblaze limit (10000)
 				const partSize = data.partSize || self.authData.recommendedPartSize;
 
@@ -931,7 +931,7 @@ const b2CloudStorage = class {
 				info.lastPart = 1;
 				// create array with calculated number of chunks (floored)
 				const pushChunks = Array.from({length: Math.floor(data.size / partSize)});
-				_.each(pushChunks, function(){
+				_.each(pushChunks, function() {
 					info.chunks.push(_.clone(fsOptions));
 					fsOptions.part++;
 					fsOptions.start += partSize;
@@ -939,7 +939,7 @@ const b2CloudStorage = class {
 				});
 				// calculate remainder left (less than single chunk)
 				const remainder = data.size % partSize;
-				if(remainder > 0){
+				if(remainder > 0) {
 					const item = _.clone(fsOptions);
 					item.end = data.size;
 					item.size = remainder;
@@ -949,20 +949,20 @@ const b2CloudStorage = class {
 
 				return process.nextTick(cb);
 			},
-			function(cb){
+			function(cb) {
 				info.shaParts = {};
 				info.totalCopied = 0;
 
 				let queue = null; // initialise queue to avoid no-use-before-define eslint error
-				const reQueue = function(task, incrementCount = true){
-					if(incrementCount){
+				const reQueue = function(task, incrementCount = true) {
+					if(incrementCount) {
 						task.attempts++;
 					}
 					queue.push(task);
 				};
-				queue = async.queue(function(task, queueCB){
+				queue = async.queue(function(task, queueCB) {
 					// if the queue has already errored, just callback immediately
-					if(info.error){
+					if(info.error) {
 						return process.nextTick(queueCB);
 					}
 					self.request({
@@ -974,10 +974,10 @@ const b2CloudStorage = class {
 							partNumber: task.part,
 							range: `bytes=${task.start}-${task.end}`,
 						},
-					}, function(err, results){
-						if(err){
+					}, function(err, results) {
+						if(err) {
 							// if upload fails, error if exceeded max attempts, else requeue
-							if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors){
+							if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors) {
 								info.error = err;
 								return queueCB(err);
 							}
@@ -992,20 +992,20 @@ const b2CloudStorage = class {
 				}, self.maxCopyWorkers);
 
 				// callback when queue has completed
-				queue.drain(function(){
+				queue.drain(function() {
 					clearInterval(interval);
-					if(info.error){
+					if(info.error) {
 						return cb();
 					}
 					info.partSha1Array = [];
 					let i = 1;
-					while(i <= info.lastPart){
+					while(i <= info.lastPart) {
 						info.partSha1Array.push(info.shaParts[i++]);
 					}
 					return cb();
 				});
-				interval = setInterval(function(){
-					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function'){
+				interval = setInterval(function() {
+					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function') {
 						return;
 					}
 					const percent = Math.floor((info.totalCopied / data.size) * 100);
@@ -1018,13 +1018,13 @@ const b2CloudStorage = class {
 
 				queue.push(info.chunks);
 			},
-			function(cb){
-				if(interval){
+			function(cb) {
+				if(interval) {
 					clearInterval(interval);
 				}
 
 				// cleanup large file upload if error occurred
-				if(!info.error){
+				if(!info.error) {
 					return cb();
 				}
 
@@ -1036,8 +1036,8 @@ const b2CloudStorage = class {
 					},
 				}, cb);
 			},
-			function(cb){
-				if(info.error){
+			function(cb) {
+				if(info.error) {
 					return cb(info.error);
 				}
 				self.request({
@@ -1047,34 +1047,34 @@ const b2CloudStorage = class {
 						fileId: info.fileId,
 						partSha1Array: info.partSha1Array,
 					},
-				}, function(err, results){
-					if(err){
+				}, function(err, results) {
+					if(err) {
 						return cb(err);
 					}
 					info.returnData = results;
 					return cb();
 				});
 			},
-		], function(err){
-			if(interval){
+		], function(err) {
+			if(interval) {
 				clearInterval(interval);
 			}
-			if(err || info.error){
+			if(err || info.error) {
 				return callback(err || info.error);
 			}
 			return callback(null, info.returnData);
 		});
 
 		return {
-			cancel: function(){
+			cancel: function() {
 				info.error = new Error('B2 upload canceled');
 				// TODO: cancel all concurrent copy part requests
 			},
-			progress: function(){
+			progress: function() {
 				return info.progress;
 			},
-			info: function(){
-				if(info.returnData){
+			info: function() {
+				if(info.returnData) {
 					return info.returnData;
 				}
 				return {
@@ -1091,7 +1091,7 @@ const b2CloudStorage = class {
      * @param {Object} data Configuration data passed from the `uploadFile` method.
      * @param {Function} [callback]
      */
-	uploadFileSmall(filename, data, callback = function(){}){
+	uploadFileSmall(filename, data, callback = function() {}) {
 		let req = null;
 		const info = {};
 		let attempts = 0;
@@ -1103,7 +1103,7 @@ const b2CloudStorage = class {
 					bucketId: data.bucketId,
 				},
 			}, (err, results) => {
-				if(err){
+				if(err) {
 					return callback(err);
 				}
 				const requestData = {
@@ -1120,7 +1120,7 @@ const b2CloudStorage = class {
 					},
 					body: fs.createReadStream(filename),
 				};
-				if(data.testMode){
+				if(data.testMode) {
 					requestData.headers['X-Bz-Test-Mode'] = data.testMode;
 				}
 				data.info = _.defaults({
@@ -1128,31 +1128,31 @@ const b2CloudStorage = class {
 				}, data.info, {
 					'src_last_modified_millis': data.stat.mtime.getTime(),
 				});
-				_.each(data.info || {}, function(value, key){
+				_.each(data.info || {}, function(value, key) {
 					requestData.headers['X-Bz-Info-' + key] = value;
 				});
 				data.info = _.mapValues(data.info, _.toString);
 
 				let interval = null;
 				callback = _.once(callback);
-				req = this.request(requestData, function(err, results, res){
+				req = this.request(requestData, function(err, results, res) {
 					attempts++;
-					if(err){
-						if(attempts > data.maxPartAttempts || attempts > data.maxTotalErrors){
+					if(err) {
+						if(attempts > data.maxPartAttempts || attempts > data.maxTotalErrors) {
 							return callback(new Error('Exceeded max retry attempts for upload'));
 						}
 						// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
-						if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT'){
+						if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') {
 							return upload();
 						}
 						// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
-						if(res && (res.statusCode === 408 || (res.statusCode >= 500 && res.statusCode <= 599))){
+						if(res && (res.statusCode === 408 || (res.statusCode >= 500 && res.statusCode <= 599))) {
 							return upload();
 						}
 						return callback(err);
 					}
 					info.returnData = results;
-					if(data.onFileId && typeof(data.onFileId) === 'function'){
+					if(data.onFileId && typeof(data.onFileId) === 'function') {
 						data.onFileId(results.fileId);
 					}
 					return callback(null, results);
@@ -1164,12 +1164,12 @@ const b2CloudStorage = class {
 					clearInterval(interval);
 					return callback(new Error('B2 upload canceled'));
 				});
-				interval = setInterval(function(){
-					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function'){
+				interval = setInterval(function() {
+					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function') {
 						return;
 					}
 					let bytesDispatched = 0;
-					if(req.req && req.req.connection && req.req.connection._bytesDispatched){
+					if(req.req && req.req.connection && req.req.connection._bytesDispatched) {
 						bytesDispatched = req.req.connection._bytesDispatched;
 					}
 					const percent = Math.floor((bytesDispatched / data.size) * 100);
@@ -1184,15 +1184,15 @@ const b2CloudStorage = class {
 		};
 		upload();
 		return {
-			cancel: function(){
-				if(req && req.abort){
+			cancel: function() {
+				if(req && req.abort) {
 					req.abort();
 				}
 			},
-			progress: function(){
+			progress: function() {
 				return info.progress;
 			},
-			info: function(){
+			info: function() {
 				return info.returnData;
 			},
 		};
@@ -1207,8 +1207,8 @@ const b2CloudStorage = class {
      * @param {Object} data Configuration data passed from the `uploadFile` method.
      * @param {Function} [callback]
      */
-	uploadFileLarge(filename, data, callback = function(){}){
-		if(!this.authData){
+	uploadFileLarge(filename, data, callback = function() {}) {
+		if(!this.authData) {
 			return callback(new Error('Not authenticated. Did you forget to call authorize()?'));
 		}
 		const self = this;
@@ -1226,15 +1226,15 @@ const b2CloudStorage = class {
 
 		data.limit = data.limit || 4; // todo: calculate / dynamic or something
 
-		const generateUploadURL = function(num, callback){
+		const generateUploadURL = function(num, callback) {
 			self.request({
 				url: 'b2_get_upload_part_url',
 				method: 'POST',
 				json: {
 					fileId: info.fileId,
 				},
-			}, function(err, results){
-				if(err){
+			}, function(err, results) {
+				if(err) {
 					return callback(err);
 				}
 				info.upload_urls[num] = {
@@ -1247,28 +1247,28 @@ const b2CloudStorage = class {
 		};
 		let interval = null;
 		async.series([
-			function(cb){
-				if(!data.largeFileId){
+			function(cb) {
+				if(!data.largeFileId) {
 					return cb();
 				}
 				// resuming a file upload
 				const parts = {};
 				let startPartNumber = 0;
 				let validFileId = false;
-				async.whilst(function(wcb){
+				async.whilst(function(wcb) {
 					return wcb(null, startPartNumber !== null);
-				}, function(wcb){
+				}, function(wcb) {
 					const partsData = {
 						fileId: data.largeFileId,
 						maxPartCount: 1000,
 					};
-					if(startPartNumber){
+					if(startPartNumber) {
 						partsData.startPartNumber = startPartNumber;
 					}
-					self.listParts(partsData, function(err, results){
-						if(err){
+					self.listParts(partsData, function(err, results) {
+						if(err) {
 							// failed to find the fileId or invalid fileId
-							if(results.status === 400 && data.ignoreFileIdError){
+							if(results.status === 400 && data.ignoreFileIdError) {
 								startPartNumber = null;
 								return wcb();
 							}
@@ -1277,14 +1277,14 @@ const b2CloudStorage = class {
 						validFileId = true;
 						startPartNumber = results.nextPartNumber; // will return null or the next number
 						let partTrack = 1;
-						_.each(results.parts, function(part){
-							if(info.lastUploadedPart < part.partNumber){
+						_.each(results.parts, function(part) {
+							if(info.lastUploadedPart < part.partNumber) {
 								info.lastUploadedPart = part.partNumber;
 							}
-							if(partTrack !== part.partNumber){
+							if(partTrack !== part.partNumber) {
 								return;
 							} // ignore gaps in upload, TODO: check for order?
-							if(info.lastConsecutivePart < part.partNumber){
+							if(info.lastConsecutivePart < part.partNumber) {
 								info.lastConsecutivePart = part.partNumber;
 							}
 							parts[part.partNumber] = part.contentLength;
@@ -1293,14 +1293,14 @@ const b2CloudStorage = class {
 						});
 						return wcb();
 					});
-				}, function(err){
-					if(err){
+				}, function(err) {
+					if(err) {
 						// TODO detect when invalid file ID, don't error
 						return cb(err);
 					}
-					if(validFileId){
+					if(validFileId) {
 						info.fileId = data.largeFileId;
-						if(data.onFileId && typeof(data.onFileId) === 'function'){
+						if(data.onFileId && typeof(data.onFileId) === 'function') {
 							data.onFileId(info.fileId);
 						}
 						info.uploadedParts = parts;
@@ -1309,7 +1309,7 @@ const b2CloudStorage = class {
 					return cb();
 				});
 			},
-			function(cb){
+			function(cb) {
 				// check our parts
 				// todo: maybe tweak recommendedPartSize if the total number of chunks exceeds the total backblaze limit (10000)
 				const partSize = data.partSize || self.authData.recommendedPartSize;
@@ -1325,29 +1325,29 @@ const b2CloudStorage = class {
 				info.chunks = [];
 				info.lastPart = 1;
 				let chunkError = null;
-				while(!chunkError && data.size > partTemplate.end){
+				while(!chunkError && data.size > partTemplate.end) {
 					partTemplate.part++;
 
 					let currentPartSize = partSize; // default to recommended size
 					// check previously uploaded parts
-					if(info.uploadedParts[partTemplate.part]){
+					if(info.uploadedParts[partTemplate.part]) {
 						currentPartSize = info.uploadedParts[partTemplate.part];
 					}
 					// calculates at least how big each chunk has to be to fit into the chunks previously uploaded
 					// we don't know the start/end of those chunks and they MUST be overwritten
-					if(partTemplate.part > info.lastConsecutivePart && partTemplate.part < info.lastUploadedPart){
-						if(!info.missingPartSize){
+					if(partTemplate.part > info.lastConsecutivePart && partTemplate.part < info.lastUploadedPart) {
+						if(!info.missingPartSize) {
 							const accountedForParts = partTemplate.end + 1; // last uploaded part
 							info.missingPartSize = Math.ceil((data.size - accountedForParts) / (info.lastUploadedPart - info.lastConsecutivePart));
 							// if this exceeds the recommended size, we can lower the part size and write more chunks after the
 							// higher number of chunks previously uploaded
-							if(info.missingPartSize > partSize){
+							if(info.missingPartSize > partSize) {
 								info.missingPartSize = partSize;
 							}
 						}
 						currentPartSize = info.missingPartSize;
 					}
-					if(currentPartSize <= 0){
+					if(currentPartSize <= 0) {
 						chunkError = new Error('B2 part size cannot be zero');
 						chunkError.chunk = partTemplate;
 						break;
@@ -1355,7 +1355,7 @@ const b2CloudStorage = class {
 
 					partTemplate.end += currentPartSize; // minus 1 to prevent overlapping chunks
 					// check for end of file, adjust part size
-					if(partTemplate.end + 1 >= data.size){
+					if(partTemplate.end + 1 >= data.size) {
 						// calculate the part size with the remainder
 						// started with -1, so needs to be padded to prevent off by 1 errors
 						currentPartSize = currentPartSize - (partTemplate.end + 1 - data.size);
@@ -1363,28 +1363,28 @@ const b2CloudStorage = class {
 					}
 					partTemplate.start += partTemplate.size; // last part size
 					partTemplate.size = currentPartSize;
-					if(partTemplate.part === 1){
+					if(partTemplate.part === 1) {
 						partTemplate.start = 0;
 					}
-					if(partTemplate.size > partSize){
+					if(partTemplate.size > partSize) {
 						chunkError = new Error('B2 part size overflows maximum recommended chunk to resume upload.');
 						chunkError.chunk = partTemplate;
 						break;
 					}
-					if(info.lastPart < partTemplate.part){
+					if(info.lastPart < partTemplate.part) {
 						info.lastPart = partTemplate.part;
 					}
 					info.chunks.push(_.clone(partTemplate));
 				}
-				return process.nextTick(function(){
-					if(chunkError){
+				return process.nextTick(function() {
+					if(chunkError) {
 						return cb(chunkError);
 					}
 					return cb();
 				});
 			},
-			function(cb){
-				if(info.fileId){
+			function(cb) {
+				if(info.fileId) {
 					return cb();
 				}
 				let fileInfo = _.defaults({
@@ -1404,39 +1404,39 @@ const b2CloudStorage = class {
 						fileInfo: fileInfo,
 					},
 				}, (err, results) => {
-					if(err){
+					if(err) {
 						return cb(err);
 					}
 					info.fileId = results.fileId;
-					if(data.onFileId && typeof(data.onFileId) === 'function'){
+					if(data.onFileId && typeof(data.onFileId) === 'function') {
 						data.onFileId(info.fileId);
 					}
 					return cb();
 				});
 			},
-			function(cb){
-				async.times(data.limit, function(num, next){
+			function(cb) {
+				async.times(data.limit, function(num, next) {
 					return generateUploadURL(num, next);
 				}, cb);
 			},
-			function(cb){
+			function(cb) {
 				info.totalUploaded = 0;
 
 				let queue = null; // initialise queue to avoid no-use-before-define eslint error
-				const reQueue = function(task, incrementCount = true){
-					if(incrementCount){
+				const reQueue = function(task, incrementCount = true) {
+					if(incrementCount) {
 						task.attempts++;
 					}
 					queue.push(task);
 				};
-				queue = async.queue(function(task, queueCB){
+				queue = async.queue(function(task, queueCB) {
 					// if the queue has already errored, just callback immediately
-					if(info.error){
+					if(info.error) {
 						return process.nextTick(queueCB);
 					}
 
 					// check for previously uploaded
-					if(info.uploadedParts[task.part]){
+					if(info.uploadedParts[task.part]) {
 						// already uploaded
 						info.totalUploaded += task.size;
 						return process.nextTick(queueCB);
@@ -1446,14 +1446,14 @@ const b2CloudStorage = class {
 					// re-queue if no url found (shouldn't ever happen)
 					let url = null;
 					let urlIndex = null;
-					for(const key in info.upload_urls){
-						if(url){ break; }
-						if(info.upload_urls[key].in_use === false){
+					for(const key in info.upload_urls) {
+						if(url) { break; }
+						if(info.upload_urls[key].in_use === false) {
 							url = info.upload_urls[key];
 							urlIndex = key;
 						}
 					}
-					if(!urlIndex || !url){
+					if(!urlIndex || !url) {
 						return reQueue(task, false);
 					}
 					url.in_use = true;
@@ -1466,11 +1466,11 @@ const b2CloudStorage = class {
 					});
 
 					// get hash
-					self.getHash(hashStream, function(err, hash){
+					self.getHash(hashStream, function(err, hash) {
 						// if hash fails, error if exceeded max attempts, else requeue
-						if(err){
+						if(err) {
 							url.in_use = false;
-							if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors){
+							if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors) {
 								info.error = err;
 								return queueCB(err);
 							}
@@ -1499,35 +1499,35 @@ const b2CloudStorage = class {
 							},
 							body: fileStream,
 						};
-						if(data.testMode){
+						if(data.testMode) {
 							reqOptions.headers['X-Bz-Test-Mode'] = data.testMode;
 						}
-						url.request = self.request(reqOptions, function(err, body, res){
+						url.request = self.request(reqOptions, function(err, body, res) {
 							// release upload url
 							url.in_use = false;
 							url.request = null;
 
-							const retry = function(){
-								return generateUploadURL(urlIndex, function(err){
+							const retry = function() {
+								return generateUploadURL(urlIndex, function(err) {
 									// if we're unable to get an upload URL from B2, we can't attempt to retry
-									if(err){ return queueCB(err); }
+									if(err) { return queueCB(err); }
 									reQueue(task);
 									return queueCB();
 								});
 							};
 							// if upload fails, error if exceeded max attempts, else requeue
-							if(err){
+							if(err) {
 								// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
 								info.totalErrors++;
-								if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT'){
+								if(err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') {
 									return retry();
 								}
 								// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
-								if(res && (res.statusCode === 408 || (res.statusCode >= 500 && res.statusCode <= 599))){
+								if(res && (res.statusCode === 408 || (res.statusCode >= 500 && res.statusCode <= 599))) {
 									return retry();
 								}
 								// push back to queue
-								if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors){
+								if(task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors) {
 									info.error = err;
 									return queueCB(err);
 								}
@@ -1543,25 +1543,25 @@ const b2CloudStorage = class {
 				}, _.size(info.upload_urls));
 
 				// callback when queue has completed
-				queue.drain(function(){
+				queue.drain(function() {
 					clearInterval(interval);
-					if(info.error){
+					if(info.error) {
 						return cb();
 					}
 					info.partSha1Array = [];
 					let i = 1;
-					while(i <= info.lastPart){
+					while(i <= info.lastPart) {
 						info.partSha1Array.push(info.shaParts[i++]);
 					}
 					return cb();
 				});
-				interval = setInterval(function(){
-					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function'){
+				interval = setInterval(function() {
+					if(!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function') {
 						return;
 					}
 					let bytesDispatched = 0;
-					bytesDispatched = _.sumBy(Object.values(info.upload_urls), function(url){
-						if(url && url.request && url.request.req && url.request.req.connection && url.request.req.connection._bytesDispatched){
+					bytesDispatched = _.sumBy(Object.values(info.upload_urls), function(url) {
+						if(url && url.request && url.request.req && url.request.req.connection && url.request.req.connection._bytesDispatched) {
 							return url.request.req.connection._bytesDispatched;
 						}
 						return 0;
@@ -1577,13 +1577,13 @@ const b2CloudStorage = class {
 
 				queue.push(info.chunks);
 			},
-			function(cb){
-				if(interval){
+			function(cb) {
+				if(interval) {
 					clearInterval(interval);
 				}
 
 				// cleanup large file upload if error occurred
-				if(!info.error){
+				if(!info.error) {
 					return cb();
 				}
 
@@ -1595,8 +1595,8 @@ const b2CloudStorage = class {
 					},
 				}, cb);
 			},
-			function(cb){
-				if(info.error){
+			function(cb) {
+				if(info.error) {
 					return cb(info.error);
 				}
 				self.request({
@@ -1606,37 +1606,37 @@ const b2CloudStorage = class {
 						fileId: info.fileId,
 						partSha1Array: info.partSha1Array,
 					},
-				}, function(err, results){
-					if(err){
+				}, function(err, results) {
+					if(err) {
 						return cb(err);
 					}
 					info.returnData = results;
 					return cb();
 				});
 			},
-		], function(err){
-			if(interval){
+		], function(err) {
+			if(interval) {
 				clearInterval(interval);
 			}
-			if(err || info.error){
+			if(err || info.error) {
 				return callback(err || info.error);
 			}
 			return callback(null, info.returnData);
 		});
 		return {
-			cancel: function(){
+			cancel: function() {
 				info.error = new Error('B2 upload canceled');
-				_.each(info.upload_urls, function(url){
-					if(url.request && url.request.abort){
+				_.each(info.upload_urls, function(url) {
+					if(url.request && url.request.abort) {
 						url.request.abort();
 					}
 				});
 			},
-			progress: function(){
+			progress: function() {
 				return info.progress;
 			},
-			info: function(){
-				if(info.returnData){
+			info: function() {
+				if(info.returnData) {
 					return info.returnData;
 				}
 				return {

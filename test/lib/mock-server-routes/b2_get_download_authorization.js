@@ -1,13 +1,13 @@
 'use strict';
-module.exports = function(mocks, config){
+module.exports = function(mocks, config) {
 	/* get download authorization bucket with invalid headers */
-	mocks.api.post('/b2api/v2/b2_get_download_authorization').matchHeader('authorization', function(val){
+	mocks.api.post('/b2api/v2/b2_get_download_authorization').matchHeader('authorization', function(val) {
 		return val !== config.auth.all.authToken && val !== config.auth.buckets.authToken && val !== config.auth.none.authToken;
 	}).reply(401, {code: 'bad_auth_token', message: '', status: 401});
 
 
 	/* get download authorization with valid headers and missing `bucketId` */
-	mocks.api.post('/b2api/v2/b2_get_download_authorization', body => !body.bucketId).matchHeader('authorization', config.auth.all.authToken).reply(function(){
+	mocks.api.post('/b2api/v2/b2_get_download_authorization', body => !body.bucketId).matchHeader('authorization', config.auth.all.authToken).reply(function() {
 		return [
 			400,
 			{
@@ -21,7 +21,7 @@ module.exports = function(mocks, config){
 	/* get download authorization with valid headers and missing `keyName` */
 	mocks.api.post('/b2api/v2/b2_get_download_authorization', {
 		bucketId: config.bucketId,
-	}).matchHeader('authorization', config.auth.all.authToken).reply(function(){
+	}).matchHeader('authorization', config.auth.all.authToken).reply(function() {
 		return [
 			400,
 			{
@@ -36,7 +36,7 @@ module.exports = function(mocks, config){
 	mocks.api.post('/b2api/v2/b2_get_download_authorization', {
 		bucketId: config.bucketId,
 		fileNamePrefix: config.file.source.fileName,
-	}).matchHeader('authorization', config.auth.all.authToken).reply(function(){
+	}).matchHeader('authorization', config.auth.all.authToken).reply(function() {
 		return [
 			400,
 			{
@@ -52,7 +52,7 @@ module.exports = function(mocks, config){
 		bucketId: config.bucketId,
 		fileNamePrefix: config.file.source.fileName,
 		validDurationInSeconds: 10,
-	}).matchHeader('authorization', config.auth.none.authToken).reply(function(){
+	}).matchHeader('authorization', config.auth.none.authToken).reply(function() {
 		return [
 			401,
 			config.responses.unauthorized,
@@ -64,7 +64,7 @@ module.exports = function(mocks, config){
 		bucketId: config.bucketId,
 		fileNamePrefix: config.file.source.fileName,
 		validDurationInSeconds: 10,
-	}).matchHeader('authorization', config.auth.all.authToken).reply(function(){
+	}).matchHeader('authorization', config.auth.all.authToken).reply(function() {
 		return [
 			200,
 			{
