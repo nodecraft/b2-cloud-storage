@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert');
-const b2CloudStorage = require('..');
 
+const b2CloudStorage = require('..');
 const config = require('./lib/config.js');
 
 require('./lib/mock-server.js'); // mock b2 api server
@@ -15,7 +15,7 @@ describe('b2_cancel_large_file', function() {
 			},
 		});
 		b2.authorize((err) => {
-			if(err) {
+			if (err) {
 				return done(err);
 			}
 			b2.cancelLargeFile({}, function(err) {
@@ -34,7 +34,7 @@ describe('b2_cancel_large_file', function() {
 			},
 		});
 		b2.authorize((err) => {
-			if(err) {
+			if (err) {
 				return done(err);
 			}
 			b2.cancelLargeFile({
@@ -55,7 +55,7 @@ describe('b2_cancel_large_file', function() {
 			},
 		});
 		b2.authorize((err) => {
-			if(err) {
+			if (err) {
 				return done(err);
 			}
 			b2.cancelLargeFile({

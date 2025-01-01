@@ -3,7 +3,7 @@ module.exports = function(mocks, config) {
 	/* list unfinished large files with invalid headers */
 	mocks.api.post('/b2api/v2/b2_list_unfinished_large_files').matchHeader('authorization', function(val) {
 		return val !== config.auth.all.authToken && val !== config.auth.buckets.authToken && val !== config.auth.none.authToken;
-	}).reply(401, {code: 'bad_auth_token', message: '', status: 401});
+	}).reply(401, { code: 'bad_auth_token', message: '', status: 401 });
 
 	/* list unfinished large files with valid headers and missing `bucketId` */
 	mocks.api.post('/b2api/v2/b2_list_unfinished_large_files', body => !body.bucketId).matchHeader('authorization', config.auth.all.authToken).reply(function() {

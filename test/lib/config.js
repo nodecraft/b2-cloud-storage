@@ -67,7 +67,7 @@ const config = {
 	},
 };
 // create and store auth headers for testing
-for(const authType in config.auth) {
+for (const authType in config.auth) {
 	const header = 'Basic ' + Buffer.from(config.auth[authType].accountId + ':' + config.auth[authType].applicationKey).toString('base64');
 	config.auth[authType].authHeader = header;
 	config.authHeaders.push(header);

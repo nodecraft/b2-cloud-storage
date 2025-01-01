@@ -3,10 +3,10 @@ module.exports = function(mocks, config) {
 	/* authorize with invalid headers */
 	mocks.raw.get('/b2api/v2/b2_authorize_account').matchHeader('authorization', function(val) {
 		return !config.authHeaders.includes(val);
-	}).reply(401, {code: 'bad_auth_token', message: '', status: 401});
+	}).reply(401, { code: 'bad_auth_token', message: '', status: 401 });
 
 	/* authorize with valid headers */
-	for(const authType in config.auth) {
+	for (const authType in config.auth) {
 		mocks.raw.get('/b2api/v2/b2_authorize_account').basicAuth({
 			user: config.auth[authType].accountId,
 			pass: config.auth[authType].applicationKey,
