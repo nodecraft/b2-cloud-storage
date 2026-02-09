@@ -1546,7 +1546,9 @@ const b2CloudStorage = class {
 						};
 						// if upload fails, error if exceeded max attempts, else requeue
 						if (err) {
-							info.totalErrors++;
+							if (!streamErrorHandled) {
+								info.totalErrors++;
+							}
 							// fail immediately if max errors exceeded
 							if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
 								info.error = err;
