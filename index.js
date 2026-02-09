@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
+const { Transform } = require('node:stream');
 const url = require('node:url');
 
 const async = require('async');
@@ -28,6 +29,7 @@ const b2CloudStorage = class {
      * @param  {number} options.maxPartAttempts Maximum retries each part can reattempt before erroring when uploading a Large File.
      * @param  {number} options.maxTotalErrors Maximum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed.
      * @param  {number} options.maxReauthAttempts Maximum times this library will try to reauthenticate if an auth token expires, before assuming failure.
+     * @param  {number} options.defaultUploadConcurrency Default number of concurrent part uploads for large files. Defaults to 4.
      * @return {undefined}
      */
 	constructor(options) {
@@ -64,6 +66,7 @@ const b2CloudStorage = class {
 		this.maxPartAttempts = options.maxPartAttempts || 3; // retry each chunk up to 3 times
 		this.maxTotalErrors = options.maxTotalErrors || 10; // quit if 10 chunks fail
 		this.maxReauthAttempts = options.maxReauthAttempts || 3; // quit if 3 re-auth attempts fail
+		this.defaultUploadConcurrency = options.defaultUploadConcurrency || 4;
 	}
 
 	/**
@@ -100,7 +103,7 @@ const b2CloudStorage = class {
 
 	/**
      * Upload file with `b2_upload_file` or as several parts of a large file upload.
-     * This method also will get the filesize & sha1 hash of the entire file.
+     * This method also will get the filesize & sha1 hash of the entire file (unless `data.hash` is already provided or set to `false`).
      * @param {String} filename Path to filename to for upload.
      * @param {Object} data Configuration data passed from the `uploadFile` method.
      * @param {String} data.bucketId The target bucket the file is to be uploaded.
@@ -113,7 +116,7 @@ const b2CloudStorage = class {
      * @param {Number} [data.progressInterval] How frequently the `onUploadProgress` callback is fired during upload
      * @param {Number} [data.partSize] Overwrite the default part size as defined by the b2 authorization process
      * @param {Object} [data.info] File info metadata for the file.
-     * @param {String} [data.hash] Skips the sha1 hash step with hash already provided.
+     * @param {String|false} [data.hash] When a string is provided, skips the whole-file sha1 computation and uses the given hash. Set to `false` to skip hashing entirely; small files will use `do_not_verify`, while large file parts are always verified post-upload against B2's response.
      * @param {('fail_some_uploads'|'expire_some_account_authorization_tokens'|'force_cap_exceeded')} [data.testMode] Enables B2 test mode by setting the `X-Bz-Test-Mode` header, which will cause intermittent artificial failures.
      * @param {Function} [callback]
      * @returns {object} Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`
@@ -162,7 +165,7 @@ const b2CloudStorage = class {
 				if (cancel) {
 					return cb(new Error('B2 upload canceled'));
 				}
-				if (data.hash) {
+				if (typeof data.hash === 'string' || data.hash === false) {
 					return cb();
 				}
 				self.getFileHash(filename, function(err, hash) {
@@ -900,9 +903,10 @@ const b2CloudStorage = class {
 						bucketId: data.destinationBucketId,
 						fileName: data.fileName,
 						contentType: data.contentType,
-						fileInfo: _.defaults(data.fileInfo, {
+						fileInfo: _.defaults({}, data.fileInfo, data.hash ? {
 							large_file_sha1: data.hash,
 							hash_sha1: data.hash,
+						} : {}, {
 							src_last_modified_millis: String(Date.now()),
 						}),
 					},
@@ -915,8 +919,11 @@ const b2CloudStorage = class {
 				});
 			},
 			function(cb) {
-				// todo: maybe tweak recommendedPartSize if the total number of chunks exceeds the total backblaze limit (10000)
-				const partSize = data.partSize || self.authData.recommendedPartSize;
+				let partSize = data.partSize || self.authData.recommendedPartSize;
+				const minPartSize = Math.ceil(data.size / 10000);
+				if (minPartSize > partSize) {
+					partSize = minPartSize;
+				}
 
 				// track the current chunk
 				const fsOptions = {
@@ -941,7 +948,7 @@ const b2CloudStorage = class {
 				const remainder = data.size % partSize;
 				if (remainder > 0) {
 					const item = _.clone(fsOptions);
-					item.end = data.size;
+					item.end = data.size - 1;
 					item.size = remainder;
 					info.chunks.push(item);
 				}
@@ -977,11 +984,11 @@ const b2CloudStorage = class {
 					}, function(err, results) {
 						if (err) {
 							// if upload fails, error if exceeded max attempts, else requeue
-							if (task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors) {
+							info.totalErrors++;
+							if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
 								info.error = err;
 								return queueCB(err);
 							}
-							info.totalErrors++;
 							reQueue(task);
 							return queueCB();
 						}
@@ -1116,16 +1123,16 @@ const b2CloudStorage = class {
 						'Content-Type': data.contentType,
 						'Content-Length': data.size,
 						'X-Bz-File-Name': data.fileName,
-						'X-Bz-Content-Sha1': data.hash,
+						'X-Bz-Content-Sha1': data.hash === false ? 'do_not_verify' : data.hash,
 					},
 					body: fs.createReadStream(filename),
 				};
 				if (data.testMode) {
 					requestData.headers['X-Bz-Test-Mode'] = data.testMode;
 				}
-				data.info = _.defaults({
+				data.info = _.defaults(data.hash ? {
 					hash_sha1: data.hash,
-				}, data.info, {
+				} : {}, data.info, {
 					src_last_modified_millis: data.stat.mtime.getTime(),
 				});
 				_.each(data.info || {}, function(value, key) {
@@ -1201,8 +1208,9 @@ const b2CloudStorage = class {
 
 	/**
      * Helper method: Uploads a large file as several parts
-     * This method will split the large files into several chunks & sha1 hash each part.
-     * These chunks are uploaded in parallel to B2 and will retry on fail.
+     * This method will split the large file into several chunks, uploading them in parallel to B2.
+     * Each part's sha1 hash is computed inline during upload via a transform stream and verified against B2's response.
+     * Parts will retry on failure.
      * @private
      * @param {String} filename Path to filename for upload.
      * @param {Object} data Configuration data passed from the `uploadFile` method.
@@ -1225,7 +1233,7 @@ const b2CloudStorage = class {
 		};
 		// TODO: handle update callbacks
 
-		data.limit = data.limit || 4; // todo: calculate / dynamic or something
+		data.limit = data.limit || self.defaultUploadConcurrency;
 
 		const generateUploadURL = function(num, callback) {
 			self.request({
@@ -1312,8 +1320,11 @@ const b2CloudStorage = class {
 			},
 			function(cb) {
 				// check our parts
-				// todo: maybe tweak recommendedPartSize if the total number of chunks exceeds the total backblaze limit (10000)
-				const partSize = data.partSize || self.authData.recommendedPartSize;
+				let partSize = data.partSize || self.authData.recommendedPartSize;
+				const minPartSize = Math.ceil(data.size / 10000);
+				if (minPartSize > partSize) {
+					partSize = minPartSize;
+				}
 
 				// track the current chunk
 				const partTemplate = {
@@ -1360,7 +1371,7 @@ const b2CloudStorage = class {
 						// calculate the part size with the remainder
 						// started with -1, so needs to be padded to prevent off by 1 errors
 						currentPartSize = currentPartSize - (partTemplate.end + 1 - data.size);
-						partTemplate.end = data.size;
+						partTemplate.end = data.size - 1;
 					}
 					partTemplate.start += partTemplate.size; // last part size
 					partTemplate.size = currentPartSize;
@@ -1388,10 +1399,10 @@ const b2CloudStorage = class {
 				if (info.fileId) {
 					return cb();
 				}
-				let fileInfo = _.defaults({
+				let fileInfo = _.defaults(data.hash ? {
 					large_file_sha1: data.hash,
 					hash_sha1: data.hash,
-				}, data.info, {
+				} : {}, data.info, {
 					src_last_modified_millis: data.stat.mtime.getTime(),
 				});
 				fileInfo = _.mapValues(fileInfo, _.toString);
@@ -1431,6 +1442,8 @@ const b2CloudStorage = class {
 					queue.push(task);
 				};
 				queue = async.queue(function(task, queueCB) {
+					queueCB = _.once(queueCB);
+
 					// if the queue has already errored, just callback immediately
 					if (info.error) {
 						return process.nextTick(queueCB);
@@ -1458,89 +1471,135 @@ const b2CloudStorage = class {
 						return reQueue(task, false);
 					}
 					url.in_use = true;
+					url.request = null;
 
-					// create file hash stream
-					const hashStream = fs.createReadStream(filename, {
+					// single-read: hash the part data while streaming the upload, then verify against B2's response
+					const sha1 = crypto.createHash('sha1');
+					const hashTransform = new Transform({
+						transform(chunk, encoding, cb) {
+							sha1.update(chunk);
+							cb(null, chunk);
+						},
+					});
+					const fileStream = fs.createReadStream(filename, {
 						start: task.start,
 						end: task.end,
 						encoding: null,
 					});
 
-					// get hash
-					self.getHash(hashStream, function(err, hash) {
-						// if hash fails, error if exceeded max attempts, else requeue
+					let streamErrorHandled = false;
+					const cleanupStreams = function() {
+						fileStream.destroy();
+						hashTransform.destroy();
+						if (url.request && url.request.abort) {
+							url.request.abort();
+						}
+						url.in_use = false;
+						url.request = null;
+					};
+
+					const handleStreamError = function(err) {
+						if (streamErrorHandled) { return; }
+						streamErrorHandled = true;
+						cleanupStreams();
+						info.totalErrors++;
+						if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
+							info.error = err;
+							return queueCB(err);
+						}
+						reQueue(task);
+						return queueCB();
+					};
+
+					fileStream.on('error', handleStreamError);
+					hashTransform.on('error', handleStreamError);
+					fileStream.pipe(hashTransform);
+
+					const reqOptions = {
+						apiUrl: url.uploadUrl,
+						appendPath: false,
+						method: 'POST',
+						json: false,
+						headers: {
+							'Authorization': url.authorizationToken,
+							'X-Bz-Part-Number': task.part,
+							'X-Bz-Content-Sha1': 'do_not_verify',
+							'Content-Length': task.size,
+						},
+						body: hashTransform,
+					};
+					if (data.testMode) {
+						reqOptions.headers['X-Bz-Test-Mode'] = data.testMode;
+					}
+					url.request = self.request(reqOptions, function(err, body, res) {
+						// release upload url
+						url.in_use = false;
+						url.request = null;
+
+						const retry = function() {
+							return generateUploadURL(urlIndex, function(err) {
+								// if we're unable to get an upload URL from B2, we can't attempt to retry
+								if (err) { return queueCB(err); }
+								reQueue(task);
+								return queueCB();
+							});
+						};
+						// if upload fails, error if exceeded max attempts, else requeue
 						if (err) {
-							url.in_use = false;
-							if (task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors) {
+							if (!streamErrorHandled) {
+								info.totalErrors++;
+							}
+							// fail immediately if max errors exceeded
+							if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
 								info.error = err;
 								return queueCB(err);
 							}
+							// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
+							if (err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') {
+								return retry();
+							}
+							// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
+							if (res && (res.statusCode === 408 || (res.statusCode >= 500 && res.statusCode <= 599))) {
+								return retry();
+							}
+							return queueCB(err);
+						}
+						// verify locally computed hash matches B2's response
+						if (typeof body === 'string') {
+							try {
+								body = JSON.parse(body);
+							} catch {
+								info.totalErrors++;
+								const parseErr = new Error('Failed to parse B2 upload response as JSON');
+								if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
+									info.error = parseErr;
+									return queueCB(parseErr);
+								}
+								reQueue(task);
+								return queueCB();
+							}
+						}
+						const localHash = sha1.digest('hex');
+						const remoteHash = body && body.contentSha1;
+						if (!remoteHash || (remoteHash !== 'do_not_verify' && remoteHash !== localHash)) {
 							info.totalErrors++;
+							if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
+								const hashErr = !remoteHash
+									? new Error('B2 response missing contentSha1 for hash verification')
+									: new Error('SHA1 mismatch: local ' + localHash + ' != remote ' + remoteHash);
+								info.error = hashErr;
+								return queueCB(hashErr);
+							}
 							reQueue(task);
 							return queueCB();
 						}
-
-						// create file stream for upload
-						const fileStream = fs.createReadStream(filename, {
-							start: task.start,
-							end: task.end,
-							encoding: null,
-						});
-						queueCB = _.once(queueCB);
-						const reqOptions = {
-							apiUrl: url.uploadUrl,
-							appendPath: false,
-							method: 'POST',
-							json: false,
-							headers: {
-								'Authorization': url.authorizationToken,
-								'X-Bz-Part-Number': task.part,
-								'X-Bz-Content-Sha1': hash,
-								'Content-Length': task.size,
-							},
-							body: fileStream,
-						};
-						if (data.testMode) {
-							reqOptions.headers['X-Bz-Test-Mode'] = data.testMode;
-						}
-						url.request = self.request(reqOptions, function(err, body, res) {
-							// release upload url
-							url.in_use = false;
-							url.request = null;
-
-							const retry = function() {
-								return generateUploadURL(urlIndex, function(err) {
-									// if we're unable to get an upload URL from B2, we can't attempt to retry
-									if (err) { return queueCB(err); }
-									reQueue(task);
-									return queueCB();
-								});
-							};
-							// if upload fails, error if exceeded max attempts, else requeue
-							if (err) {
-								// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
-								info.totalErrors++;
-								if (err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') {
-									return retry();
-								}
-								// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
-								if (res && (res.statusCode === 408 || (res.statusCode >= 500 && res.statusCode <= 599))) {
-									return retry();
-								}
-								// push back to queue
-								if (task.attempts > self.maxPartAttempts || info.totalErrors > self.maxTotalErrors) {
-									info.error = err;
-									return queueCB(err);
-								}
-								return queueCB(err);
-							}
-							info.shaParts[task.part] = hash;
-							info.totalUploaded += task.size;
-							return queueCB();
-						}).on('error', () => {
-							// do nothing. Error is handled by callback above, but we need(?) to catch this to prevent it throwing
-						}).on('abort', () => queueCB());
-					});
+						info.shaParts[task.part] = localHash;
+						info.totalUploaded += task.size;
+						return queueCB();
+					}).on('error', () => {
+						// Error is handled by the request callback with proper retry logic.
+						// This handler only prevents unhandled 'error' event crashes.
+					}).on('abort', () => queueCB());
 				}, _.size(info.upload_urls));
 
 				// callback when queue has completed
