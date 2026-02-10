@@ -1658,13 +1658,15 @@ const b2CloudStorage = class {
 							}
 						}
 						const localHash = sha1.digest('hex');
+						// B2 returns "unverified:<hash>" when X-Bz-Content-Sha1 is "do_not_verify"
 						const remoteHash = body && body.contentSha1;
-						if (!remoteHash || (remoteHash !== 'do_not_verify' && remoteHash !== localHash)) {
+						const normalizedRemoteHash = typeof remoteHash === 'string' ? remoteHash.replace(/^unverified:/, '') : remoteHash;
+						if (!normalizedRemoteHash || normalizedRemoteHash !== localHash) {
 							info.totalErrors++;
 							if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
-								const hashErr = !remoteHash
+								const hashErr = !normalizedRemoteHash
 									? new Error('B2 response missing contentSha1 for hash verification')
-									: new Error('SHA1 mismatch: local ' + localHash + ' != remote ' + remoteHash);
+									: new Error('SHA1 mismatch: local ' + localHash + ' != remote ' + normalizedRemoteHash);
 								info.error = hashErr;
 								return queueCB(hashErr);
 							}
