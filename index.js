@@ -52,7 +52,7 @@ const b2CloudStorage = class {
 		}
 
 		this.maxCopyWorkers = options.maxCopyWorkers || (os.cpus().length * 5); // default to the number of available CPUs * 5 (web requests are cheap)
-		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 5GB
+		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 100MB
 		if (this.maxSmallCopyFileSize > 5_000_000_000) {
 			throw new Error('maxSmallFileSize can not exceed 5GB');
 		}
@@ -76,6 +76,141 @@ const b2CloudStorage = class {
      */
 	static getUrlEncodedFileName(fileName) {
 		return fileName.split('/').map(component => encodeURIComponent(component)).join('/');
+	}
+
+	/**
+     * Helper method: Computes an array of upload chunks with inclusive byte ranges for a large file upload.
+     * Automatically increases part size if the file would exceed B2's 10,000-part limit.
+     * Supports resume by accepting previously-uploaded part sizes and adjusting chunk boundaries accordingly.
+     * @param {Object} data Chunk build data
+     * @param {Number} data.size Total file size in bytes
+     * @param {Number} data.partSize Requested part size in bytes
+     * @param {Object<number, number>} [data.uploadedParts] Plain object hash of partNumber to existing part size in bytes, for resumed uploads
+     * @param {Number} [data.lastConsecutivePart] Last contiguous uploaded part number
+     * @param {Number} [data.lastUploadedPart] Last uploaded part number
+     * @param {Number} [data.missingPartSize] Internal resume tracking size
+     * @returns {{partSize:Number, chunks:Array<{attempts:Number, part:Number, start:Number, size:Number, end:Number}>, lastPart:Number, missingPartSize:Number}}
+     * @throws {Error} When partSize is not a finite positive number
+     * @throws {Error} When size is not a finite number or is negative
+     * @throws {Error} When part count would exceed 10,000
+     * @throws {Error} When a chunk's computed size is zero or its byte range is invalid
+     */
+	static buildLargeUploadChunks(data) {
+		const maxPartCount = 10000;
+		if (!Number.isFinite(data.partSize) || data.partSize <= 0) {
+			throw new Error('B2 part size must be greater than zero (got: ' + data.partSize + ')');
+		}
+		if (!Number.isFinite(data.size)) {
+			throw new TypeError('B2 file size must be a finite number (got: ' + data.size + ')');
+		}
+
+		const size = data.size;
+		if (size < 0) {
+			throw new Error('B2 file size must not be negative');
+		}
+		if (size === 0) {
+			return {
+				partSize: data.partSize,
+				chunks: [],
+				lastPart: 0,
+				missingPartSize: data.missingPartSize || 0,
+			};
+		}
+
+		const uploadedParts = data.uploadedParts || {};
+		const lastConsecutivePart = data.lastConsecutivePart || 0;
+		const lastUploadedPart = data.lastUploadedPart || 0;
+		let missingPartSize = data.missingPartSize || 0;
+
+		let partSize = data.partSize;
+		const minPartSize = Math.ceil(size / maxPartCount);
+		if (minPartSize > partSize) {
+			partSize = minPartSize;
+		}
+
+		const lastByte = size - 1;
+		const partTemplate = {
+			attempts: 1,
+			part: 0,
+			start: 0,
+			size: 0,
+			end: -1, // sentinel so first iteration's end += partSize yields partSize - 1 (inclusive byte index)
+		};
+
+		const chunks = [];
+		let lastPart = 1;
+
+		while (partTemplate.end < lastByte) {
+			if (partTemplate.part >= maxPartCount) {
+				const err = new Error('B2 part count can not exceed 10,000 parts (file size: ' + size + ', partSize: ' + partSize + ')');
+				err.chunk = _.clone(partTemplate);
+				throw err;
+			}
+
+			partTemplate.part++;
+
+			let currentPartSize = partSize;
+			if (uploadedParts[partTemplate.part]) {
+				currentPartSize = uploadedParts[partTemplate.part];
+			}
+
+			if (partTemplate.part > lastConsecutivePart && partTemplate.part < lastUploadedPart) {
+				if (!missingPartSize) {
+					const accountedForParts = partTemplate.end + 1;
+					missingPartSize = Math.ceil((size - accountedForParts) / (lastUploadedPart - lastConsecutivePart));
+					if (missingPartSize > partSize) {
+						missingPartSize = partSize;
+					}
+				}
+				currentPartSize = missingPartSize;
+			}
+
+			if (currentPartSize <= 0) {
+				const err = new Error('B2 part size cannot be zero at part ' + partTemplate.part + ' (file size: ' + size + ', partSize: ' + partSize + ')');
+				err.chunk = _.clone(partTemplate);
+				throw err;
+			}
+
+			partTemplate.end += currentPartSize;
+			if (partTemplate.end > lastByte) {
+				currentPartSize = currentPartSize - (partTemplate.end - lastByte);
+				partTemplate.end = lastByte;
+			}
+
+			if (currentPartSize <= 0) {
+				const err = new Error('B2 part size cannot be zero at part ' + partTemplate.part + ' (file size: ' + size + ', partSize: ' + partSize + ')');
+				err.chunk = _.clone(partTemplate);
+				throw err;
+			}
+
+			partTemplate.start += partTemplate.size;
+			partTemplate.size = currentPartSize;
+			if (partTemplate.part === 1) {
+				partTemplate.start = 0;
+			}
+			if (partTemplate.size > partSize) {
+				const err = new Error('B2 part size overflows maximum recommended chunk to resume upload at part ' + partTemplate.part + ' (size: ' + partTemplate.size + ', max: ' + partSize + ')');
+				err.chunk = _.clone(partTemplate);
+				throw err;
+			}
+			if (partTemplate.end < partTemplate.start) {
+				const err = new Error('B2 chunk range is invalid at part ' + partTemplate.part + ' (start: ' + partTemplate.start + ', end: ' + partTemplate.end + ')');
+				err.chunk = _.clone(partTemplate);
+				throw err;
+			}
+
+			if (lastPart < partTemplate.part) {
+				lastPart = partTemplate.part;
+			}
+			chunks.push(_.clone(partTemplate));
+		}
+
+		return {
+			partSize: partSize,
+			chunks: chunks,
+			lastPart: lastPart,
+			missingPartSize: missingPartSize,
+		};
 	}
 
 	/**
@@ -1304,7 +1439,7 @@ const b2CloudStorage = class {
 					});
 				}, function(err) {
 					if (err) {
-						// TODO detect when invalid file ID, don't error
+						// invalid file ID is handled above via data.ignoreFileIdError
 						return cb(err);
 					}
 					if (validFileId) {
@@ -1319,81 +1454,24 @@ const b2CloudStorage = class {
 				});
 			},
 			function(cb) {
-				// check our parts
-				let partSize = data.partSize || self.authData.recommendedPartSize;
-				const minPartSize = Math.ceil(data.size / 10000);
-				if (minPartSize > partSize) {
-					partSize = minPartSize;
+				try {
+					const chunkResults = b2CloudStorage.buildLargeUploadChunks({
+						size: data.size,
+						partSize: data.partSize || self.authData.recommendedPartSize,
+						uploadedParts: info.uploadedParts,
+						lastConsecutivePart: info.lastConsecutivePart,
+						lastUploadedPart: info.lastUploadedPart,
+						missingPartSize: info.missingPartSize,
+					});
+					info.chunks = chunkResults.chunks;
+					info.lastPart = chunkResults.lastPart;
+					info.missingPartSize = chunkResults.missingPartSize;
+				} catch (err) {
+					return process.nextTick(function() {
+						return cb(err);
+					});
 				}
-
-				// track the current chunk
-				const partTemplate = {
-					attempts: 1,
-					part: 0,
-					start: 0,
-					size: 0,
-					end: -1,
-				};
-				info.chunks = [];
-				info.lastPart = 1;
-				let chunkError = null;
-				while (!chunkError && data.size > partTemplate.end) {
-					partTemplate.part++;
-
-					let currentPartSize = partSize; // default to recommended size
-					// check previously uploaded parts
-					if (info.uploadedParts[partTemplate.part]) {
-						currentPartSize = info.uploadedParts[partTemplate.part];
-					}
-					// calculates at least how big each chunk has to be to fit into the chunks previously uploaded
-					// we don't know the start/end of those chunks and they MUST be overwritten
-					if (partTemplate.part > info.lastConsecutivePart && partTemplate.part < info.lastUploadedPart) {
-						if (!info.missingPartSize) {
-							const accountedForParts = partTemplate.end + 1; // last uploaded part
-							info.missingPartSize = Math.ceil((data.size - accountedForParts) / (info.lastUploadedPart - info.lastConsecutivePart));
-							// if this exceeds the recommended size, we can lower the part size and write more chunks after the
-							// higher number of chunks previously uploaded
-							if (info.missingPartSize > partSize) {
-								info.missingPartSize = partSize;
-							}
-						}
-						currentPartSize = info.missingPartSize;
-					}
-					if (currentPartSize <= 0) {
-						chunkError = new Error('B2 part size cannot be zero');
-						chunkError.chunk = partTemplate;
-						break;
-					}
-
-					partTemplate.end += currentPartSize; // minus 1 to prevent overlapping chunks
-					// check for end of file, adjust part size
-					if (partTemplate.end + 1 >= data.size) {
-						// calculate the part size with the remainder
-						// started with -1, so needs to be padded to prevent off by 1 errors
-						currentPartSize = currentPartSize - (partTemplate.end + 1 - data.size);
-						partTemplate.end = data.size - 1;
-					}
-					partTemplate.start += partTemplate.size; // last part size
-					partTemplate.size = currentPartSize;
-					if (partTemplate.part === 1) {
-						partTemplate.start = 0;
-					}
-					if (partTemplate.size > partSize) {
-						chunkError = new Error('B2 part size overflows maximum recommended chunk to resume upload.');
-						chunkError.chunk = partTemplate;
-						break;
-					}
-					if (info.lastPart < partTemplate.part) {
-						info.lastPart = partTemplate.part;
-					}
-					info.chunks.push(_.clone(partTemplate));
-				}
-				return process.nextTick(function() {
-					if (chunkError) {
-						return cb(chunkError);
-					}
-					return cb();
-				});
+				return process.nextTick(cb);
 			},
 			function(cb) {
 				if (info.fileId) {
@@ -1580,13 +1658,15 @@ const b2CloudStorage = class {
 							}
 						}
 						const localHash = sha1.digest('hex');
+						// B2 returns "unverified:<hash>" when X-Bz-Content-Sha1 is "do_not_verify"
 						const remoteHash = body && body.contentSha1;
-						if (!remoteHash || (remoteHash !== 'do_not_verify' && remoteHash !== localHash)) {
+						const normalizedRemoteHash = typeof remoteHash === 'string' ? remoteHash.replace(/^unverified:/, '') : remoteHash;
+						if (!normalizedRemoteHash || normalizedRemoteHash !== localHash) {
 							info.totalErrors++;
 							if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
-								const hashErr = !remoteHash
+								const hashErr = !normalizedRemoteHash
 									? new Error('B2 response missing contentSha1 for hash verification')
-									: new Error('SHA1 mismatch: local ' + localHash + ' != remote ' + remoteHash);
+									: new Error('SHA1 mismatch: local ' + localHash + ' != remote ' + normalizedRemoteHash);
 								info.error = hashErr;
 								return queueCB(hashErr);
 							}
