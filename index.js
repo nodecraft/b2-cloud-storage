@@ -51,7 +51,7 @@ const b2CloudStorage = class {
 			throw new Error('maxSmallFileSize can not be less than 100MB');
 		}
 
-		this.maxCopyWorkers = options.maxCopyWorkers || (os.cpus().length * 5); // default to the number of available CPUs * 5 (web requests are cheap)
+		this.maxCopyWorkers = options.maxCopyWorkers || (os.availableParallelism().length * 5); // default to the number of available CPUs * 5 (web requests are cheap)
 		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 100MB
 		if (this.maxSmallCopyFileSize > 5_000_000_000) {
 			throw new Error('maxSmallFileSize can not exceed 5GB');
