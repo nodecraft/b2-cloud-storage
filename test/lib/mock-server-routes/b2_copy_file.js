@@ -65,4 +65,23 @@ module.exports = function(mocks, config) {
 			},
 		];
 	});
+
+	/* copy file into an explicit destination bucket, as `copyFile` issues for a small source file */
+	mocks.api.post('/b2api/v2/b2_copy_file', body => Boolean(body.sourceFileId && body.fileName && body.destinationBucketId))
+		.matchHeader('authorization', config.auth.buckets.authToken).reply(function(uri, body) {
+			return [
+				200,
+				{
+					accountId: config.auth.buckets.accountId,
+					action: 'copy',
+					bucketId: body.destinationBucketId,
+					contentLength: config.file.source.contentLength,
+					contentSha1: config.file.source.contentSha1,
+					contentType: config.file.source.contentType,
+					fileId: config.file.destination.fileId,
+					fileName: body.fileName,
+					uploadTimestamp: config.file.destination.uploadTimestamp,
+				},
+			];
+		});
 };

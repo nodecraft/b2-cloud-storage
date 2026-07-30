@@ -13,6 +13,9 @@ const request = require('request');
 const nodeVersion = process.version;
 const packageVersion = require('./package.json').version;
 
+// 1MB read chunks roughly halve upload CPU vs the 64KB fs default; the floor stops tiny/empty files from creating a zero-sized buffer
+const streamHighWaterMark = size => Math.max(Math.min(size, 1_048_576), 65536);
+
 /**
  * Backblaze B2 Cloud Storage class to handle stream-based uploads and all other API methods.
  */
@@ -24,6 +27,8 @@ const b2CloudStorage = class {
      * @param  {string} options.auth.accountId Backblaze b2 account ID for the API key.
      * @param  {string} options.auth.applicationKey Backblaze b2 application API key.
      * @param  {number} options.maxSmallFileSize Maximum filesize for the upload to upload as a single upload. Any larger size will be chunked as a Large File upload.
+     * @param  {number} options.maxSmallCopyFileSize Maximum filesize for a copy to run as a single copy. Any larger size will be chunked as a Large File copy.
+     * @param  {number} options.maxCopyWorkers Number of concurrent part copy requests when copying a Large File. Must be a positive integer.
      * @param  {string} options.url URL hostname to use when authenticating to Backblaze B2. This omits `b2api/` and the version from the URI.
      * @param  {string} options.version API version used in the Backblaze B2 url. This follows hthe `b2api/` part of the URI.
      * @param  {number} options.maxPartAttempts Maximum retries each part can reattempt before erroring when uploading a Large File.
@@ -51,7 +56,12 @@ const b2CloudStorage = class {
 			throw new Error('maxSmallFileSize can not be less than 100MB');
 		}
 
-		this.maxCopyWorkers = options.maxCopyWorkers || (os.availableParallelism().length * 5); // default to the number of available CPUs * 5 (web requests are cheap)
+		this.maxCopyWorkers = options.maxCopyWorkers ?? (os.availableParallelism() * 5); // default to the number of available CPUs * 5 (web requests are cheap)
+		// A non-positive or non-finite value silently stalls the copy part queue forever, so fail loudly here instead
+		if (!Number.isInteger(this.maxCopyWorkers) || this.maxCopyWorkers < 1) {
+			throw new Error('maxCopyWorkers must be a positive integer');
+		}
+
 		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 100MB
 		if (this.maxSmallCopyFileSize > 5_000_000_000) {
 			throw new Error('maxSmallFileSize can not exceed 5GB');
@@ -300,21 +310,6 @@ const b2CloudStorage = class {
 				if (cancel) {
 					return cb(new Error('B2 upload canceled'));
 				}
-				if (typeof data.hash === 'string' || data.hash === false) {
-					return cb();
-				}
-				self.getFileHash(filename, function(err, hash) {
-					if (err) {
-						return cb(err);
-					}
-					data.hash = hash;
-					return cb();
-				});
-			},
-			function(cb) {
-				if (cancel) {
-					return cb(new Error('B2 upload canceled'));
-				}
 				self.getStat(filename, function(err, stat) {
 					if (err) {
 						return cb(err);
@@ -322,6 +317,21 @@ const b2CloudStorage = class {
 					data.stat = stat;
 					data.size = stat.size;
 					smallFile = data.size <= self.maxSmallFileSize;
+					return cb();
+				});
+			},
+			function(cb) {
+				if (cancel) {
+					return cb(new Error('B2 upload canceled'));
+				}
+				if (typeof data.hash === 'string' || data.hash === false) {
+					return cb();
+				}
+				self.getFileHash(filename, { highWaterMark: streamHighWaterMark(data.size) }, function(err, hash) {
+					if (err) {
+						return cb(err);
+					}
+					data.hash = hash;
 					return cb();
 				});
 			},
@@ -959,11 +969,16 @@ const b2CloudStorage = class {
 	/**
      * Helper method: Gets sha1 hash from a file.
      * @private
-     * @param {String} Path to filename to get sha1 hash.
+     * @param {String} filename Path to filename to get sha1 hash.
+     * @param {Object} [streamOptions] Options passed through to `fs.createReadStream`.
      * @param {Function} [callback]
      */
-	getFileHash(filename, callback) {
-		return this.getHash(fs.createReadStream(filename), callback);
+	getFileHash(filename, streamOptions, callback) {
+		if (typeof streamOptions === 'function') {
+			callback = streamOptions;
+			streamOptions = {};
+		}
+		return this.getHash(fs.createReadStream(filename, streamOptions), callback);
 	}
 
 	/**
@@ -1087,7 +1102,9 @@ const b2CloudStorage = class {
 					item.size = remainder;
 					info.chunks.push(item);
 				}
-				info.lastPart = fsOptions.part;
+				// `fsOptions.part` has already advanced past the final chunk, which leaves a trailing
+				// empty entry in `partSha1Array` when the size is an exact multiple of partSize
+				info.lastPart = info.chunks.length;
 
 				return process.nextTick(cb);
 			},
@@ -1260,7 +1277,7 @@ const b2CloudStorage = class {
 						'X-Bz-File-Name': data.fileName,
 						'X-Bz-Content-Sha1': data.hash === false ? 'do_not_verify' : data.hash,
 					},
-					body: fs.createReadStream(filename),
+					body: fs.createReadStream(filename, { highWaterMark: streamHighWaterMark(data.size) }),
 				};
 				if (data.testMode) {
 					requestData.headers['X-Bz-Test-Mode'] = data.testMode;
@@ -1563,6 +1580,7 @@ const b2CloudStorage = class {
 						start: task.start,
 						end: task.end,
 						encoding: null,
+						highWaterMark: streamHighWaterMark(task.size),
 					});
 
 					let streamErrorHandled = false;

@@ -35,6 +35,7 @@ Backblaze B2 Cloud Storage class to handle stream-based uploads and all other AP
         * [.copyLargeFile(data, [callback])](#b2CloudStorage+copyLargeFile)
     * _static_
         * [.getUrlEncodedFileName(fileName)](#b2CloudStorage.getUrlEncodedFileName) ⇒ <code>string</code>
+        * [.buildLargeUploadChunks(data)](#b2CloudStorage.buildLargeUploadChunks) ⇒ <code>Object</code>
 
 <a name="new_b2CloudStorage_new"></a>
 
@@ -49,11 +50,14 @@ Creates new instance of the b2CloudStorage class.
 | options.auth.accountId | <code>string</code> | Backblaze b2 account ID for the API key. |
 | options.auth.applicationKey | <code>string</code> | Backblaze b2 application API key. |
 | options.maxSmallFileSize | <code>number</code> | Maximum filesize for the upload to upload as a single upload. Any larger size will be chunked as a Large File upload. |
+| options.maxSmallCopyFileSize | <code>number</code> | Maximum filesize for a copy to run as a single copy. Any larger size will be chunked as a Large File copy. |
+| options.maxCopyWorkers | <code>number</code> | Number of concurrent part copy requests when copying a Large File. Must be a positive integer. |
 | options.url | <code>string</code> | URL hostname to use when authenticating to Backblaze B2. This omits `b2api/` and the version from the URI. |
 | options.version | <code>string</code> | API version used in the Backblaze B2 url. This follows hthe `b2api/` part of the URI. |
 | options.maxPartAttempts | <code>number</code> | Maximum retries each part can reattempt before erroring when uploading a Large File. |
 | options.maxTotalErrors | <code>number</code> | Maximum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed. |
 | options.maxReauthAttempts | <code>number</code> | Maximum times this library will try to reauthenticate if an auth token expires, before assuming failure. |
+| options.defaultUploadConcurrency | <code>number</code> | Default number of concurrent part uploads for large files. Defaults to 4. |
 
 <a name="b2CloudStorage+authorize"></a>
 
@@ -70,7 +74,7 @@ Creates new instance of the b2CloudStorage class.
 
 ### b2CloudStorage.uploadFile(filename, data, [callback]) ⇒ <code>object</code>
 Upload file with `b2_upload_file` or as several parts of a large file upload.
-This method also will get the filesize & sha1 hash of the entire file.
+This method also will get the filesize & sha1 hash of the entire file (unless `data.hash` is already provided or set to `false`).
 
 **Kind**: instance method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
 **Returns**: <code>object</code> - Returns an object with 3 helper methods: `cancel()`, `progress()`, & `info()`  
@@ -89,7 +93,7 @@ This method also will get the filesize & sha1 hash of the entire file.
 | [data.progressInterval] | <code>Number</code> | How frequently the `onUploadProgress` callback is fired during upload |
 | [data.partSize] | <code>Number</code> | Overwrite the default part size as defined by the b2 authorization process |
 | [data.info] | <code>Object</code> | File info metadata for the file. |
-| [data.hash] | <code>String</code> | Skips the sha1 hash step with hash already provided. |
+| [data.hash] | <code>String</code> \| <code>false</code> | When a string is provided, skips the whole-file sha1 computation and uses the given hash. Set to `false` to skip hashing entirely; small files will use `do_not_verify`, while large file parts are always verified post-upload against B2's response. |
 | [data.testMode] | <code>&#x27;fail\_some\_uploads&#x27;</code> \| <code>&#x27;expire\_some\_account\_authorization\_tokens&#x27;</code> \| <code>&#x27;force\_cap\_exceeded&#x27;</code> | Enables B2 test mode by setting the `X-Bz-Test-Mode` header, which will cause intermittent artificial failures. |
 | [callback] | <code>function</code> |  |
 
@@ -480,4 +484,30 @@ Helper method: Properly URL encode filenames to prevent B2 throwing errors with 
 | Param | Type | Description |
 | --- | --- | --- |
 | fileName | <code>string</code> | File name for upload |
+
+<a name="b2CloudStorage.buildLargeUploadChunks"></a>
+
+### b2CloudStorage.buildLargeUploadChunks(data) ⇒ <code>Object</code>
+Helper method: Computes an array of upload chunks with inclusive byte ranges for a large file upload.
+Automatically increases part size if the file would exceed B2's 10,000-part limit.
+Supports resume by accepting previously-uploaded part sizes and adjusting chunk boundaries accordingly.
+
+**Kind**: static method of [<code>b2CloudStorage</code>](#b2CloudStorage)  
+**Throws**:
+
+- <code>Error</code> When partSize is not a finite positive number
+- <code>Error</code> When size is not a finite number or is negative
+- <code>Error</code> When part count would exceed 10,000
+- <code>Error</code> When a chunk's computed size is zero or its byte range is invalid
+
+
+| Param | Type | Description |
+| --- | --- | --- |
+| data | <code>Object</code> | Chunk build data |
+| data.size | <code>Number</code> | Total file size in bytes |
+| data.partSize | <code>Number</code> | Requested part size in bytes |
+| [data.uploadedParts] | <code>Object.&lt;number, number&gt;</code> | Plain object hash of partNumber to existing part size in bytes, for resumed uploads |
+| [data.lastConsecutivePart] | <code>Number</code> | Last contiguous uploaded part number |
+| [data.lastUploadedPart] | <code>Number</code> | Last uploaded part number |
+| [data.missingPartSize] | <code>Number</code> | Internal resume tracking size |
 
