@@ -56,7 +56,7 @@ const b2CloudStorage = class {
 			throw new Error('maxSmallFileSize can not be less than 100MB');
 		}
 
-		this.maxCopyWorkers = options.maxCopyWorkers || (os.availableParallelism() * 5); // default to the number of available CPUs * 5 (web requests are cheap)
+		this.maxCopyWorkers = options.maxCopyWorkers ?? (os.availableParallelism() * 5); // default to the number of available CPUs * 5 (web requests are cheap)
 		// A non-positive or non-finite value silently stalls the copy part queue forever, so fail loudly here instead
 		if (!Number.isInteger(this.maxCopyWorkers) || this.maxCopyWorkers < 1) {
 			throw new Error('maxCopyWorkers must be a positive integer');

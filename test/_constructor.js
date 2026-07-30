@@ -42,8 +42,10 @@ describe('b2CloudStorage', function() {
 	});
 
 	it('fails with invalid `maxCopyWorkers`', function() {
+		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: 0 }), /maxCopyWorkers/);
 		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: -1 }), /maxCopyWorkers/);
 		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: 2.5 }), /maxCopyWorkers/);
+		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: Number.NaN }), /maxCopyWorkers/);
 		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: Infinity }), /maxCopyWorkers/);
 		assert.doesNotThrow(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: 1 }));
 	});
