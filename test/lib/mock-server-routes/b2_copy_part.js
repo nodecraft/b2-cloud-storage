@@ -75,4 +75,20 @@ module.exports = function(mocks, config) {
 			},
 		];
 	});
+
+	/* ranged copy part, as issued for each chunk of a large file copy */
+	mocks.api.post('/b2api/v2/b2_copy_part', body => Boolean(body.largeFileId && body.partNumber && body.range))
+		.matchHeader('authorization', config.auth.buckets.authToken).reply(function(uri, body) {
+			const [start, end] = body.range.replace('bytes=', '').split('-').map(Number);
+			return [
+				200,
+				{
+					fileId: body.largeFileId,
+					partNumber: body.partNumber,
+					contentLength: end - start + 1,
+					contentSha1: config.partSha1(body.partNumber),
+					uploadTimestamp: config.file.largeCopy.uploadTimestamp,
+				},
+			];
+		});
 };

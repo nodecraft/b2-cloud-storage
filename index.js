@@ -24,6 +24,8 @@ const b2CloudStorage = class {
      * @param  {string} options.auth.accountId Backblaze b2 account ID for the API key.
      * @param  {string} options.auth.applicationKey Backblaze b2 application API key.
      * @param  {number} options.maxSmallFileSize Maximum filesize for the upload to upload as a single upload. Any larger size will be chunked as a Large File upload.
+     * @param  {number} options.maxSmallCopyFileSize Maximum filesize for a copy to run as a single copy. Any larger size will be chunked as a Large File copy.
+     * @param  {number} options.maxCopyWorkers Number of concurrent part copy requests when copying a Large File. Must be a positive integer.
      * @param  {string} options.url URL hostname to use when authenticating to Backblaze B2. This omits `b2api/` and the version from the URI.
      * @param  {string} options.version API version used in the Backblaze B2 url. This follows hthe `b2api/` part of the URI.
      * @param  {number} options.maxPartAttempts Maximum retries each part can reattempt before erroring when uploading a Large File.
@@ -51,7 +53,12 @@ const b2CloudStorage = class {
 			throw new Error('maxSmallFileSize can not be less than 100MB');
 		}
 
-		this.maxCopyWorkers = options.maxCopyWorkers || (os.availableParallelism().length * 5); // default to the number of available CPUs * 5 (web requests are cheap)
+		this.maxCopyWorkers = options.maxCopyWorkers || (os.availableParallelism() * 5); // default to the number of available CPUs * 5 (web requests are cheap)
+		// A non-positive or non-finite value silently stalls the copy part queue forever, so fail loudly here instead
+		if (!Number.isInteger(this.maxCopyWorkers) || this.maxCopyWorkers < 1) {
+			throw new Error('maxCopyWorkers must be a positive integer');
+		}
+
 		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 100MB
 		if (this.maxSmallCopyFileSize > 5_000_000_000) {
 			throw new Error('maxSmallFileSize can not exceed 5GB');
@@ -1087,7 +1094,9 @@ const b2CloudStorage = class {
 					item.size = remainder;
 					info.chunks.push(item);
 				}
-				info.lastPart = fsOptions.part;
+				// `fsOptions.part` has already advanced past the final chunk, which leaves a trailing
+				// empty entry in `partSha1Array` when the size is an exact multiple of partSize
+				info.lastPart = info.chunks.length;
 
 				return process.nextTick(cb);
 			},

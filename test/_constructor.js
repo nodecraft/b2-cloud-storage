@@ -1,5 +1,6 @@
 'use strict';
 const assert = require('node:assert');
+const os = require('node:os');
 
 const b2CloudStorage = require('..');
 
@@ -30,5 +31,20 @@ describe('b2CloudStorage', function() {
 		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxSmallFileSize: 5_000_000_001 }));
 		assert.doesNotThrow(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxSmallFileSize: 5_000_000_000 }));
 		assert.doesNotThrow(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxSmallFileSize: 100_000_000 }));
+	});
+
+	it('defaults `maxCopyWorkers` to a usable concurrency', function() {
+		const b2 = new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' } });
+		assert.strictEqual(b2.maxCopyWorkers, os.availableParallelism() * 5);
+		// async.queue never starts a worker when concurrency is NaN, which stalls large copies forever
+		assert(Number.isInteger(b2.maxCopyWorkers), 'maxCopyWorkers must be an integer');
+		assert(b2.maxCopyWorkers >= 1, 'maxCopyWorkers must be at least 1');
+	});
+
+	it('fails with invalid `maxCopyWorkers`', function() {
+		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: -1 }), /maxCopyWorkers/);
+		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: 2.5 }), /maxCopyWorkers/);
+		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: Infinity }), /maxCopyWorkers/);
+		assert.doesNotThrow(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: 1 }));
 	});
 });

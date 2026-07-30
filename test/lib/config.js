@@ -57,6 +57,13 @@ const config = {
 			fileName: 'testing2.txt',
 			uploadTimestamp: 1_536_964_288_000,
 		},
+		// destination of a chunked copy, created via `b2_start_large_file` rather than `b2_copy_file`
+		largeCopy: {
+			contentType: 'text/plain',
+			fileId: '4_zb2f6f21365e1d29f6c580f18_f20176875fe98d4af_d20180914_m223128_c002_v0001108_t0051',
+			fileName: 'testing-large-copy.txt',
+			uploadTimestamp: 1_536_964_290_000,
+		},
 	},
 	responses: {
 		unauthorized: {
@@ -65,6 +72,8 @@ const config = {
 			status: 401,
 		},
 	},
+	// deterministic per-part sha1 so mocks can verify a large file's parts arrive complete and in order
+	partSha1: partNumber => `mock-part-sha1-${partNumber}`,
 };
 // create and store auth headers for testing
 for (const authType in config.auth) {
