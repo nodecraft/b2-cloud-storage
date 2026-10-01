@@ -1254,6 +1254,9 @@ const b2CloudStorage = class {
 		let req = null;
 		const info = {};
 		let attempts = 0;
+		// per-upload overrides were previously the only limits read here, so keep honouring them
+		const maxPartAttempts = data.maxPartAttempts || this.maxPartAttempts;
+		const maxTotalErrors = data.maxTotalErrors || this.maxTotalErrors;
 		const upload = () => {
 			this.request({
 				url: 'b2_get_upload_url',
@@ -1297,7 +1300,7 @@ const b2CloudStorage = class {
 				req = this.request(requestData, function(err, results, res) {
 					attempts++;
 					if (err) {
-						if (attempts > data.maxPartAttempts || attempts > data.maxTotalErrors) {
+						if (attempts > maxPartAttempts || attempts > maxTotalErrors) {
 							return callback(new Error('Exceeded max retry attempts for upload'));
 						}
 						// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
