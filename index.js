@@ -1168,11 +1168,12 @@ const b2CloudStorage = class {
 						return;
 					}
 					const percent = Math.floor((info.totalCopied / data.size) * 100);
-					return data.onUploadProgress({
+					info.progress = {
 						percent: percent,
 						bytesCopied: info.totalCopied,
 						bytesTotal: data.size,
-					});
+					};
+					return data.onUploadProgress(info.progress);
 				}, data.progressInterval || 250);
 
 				queue.push(info.chunks);
@@ -1254,6 +1255,9 @@ const b2CloudStorage = class {
 		let req = null;
 		const info = {};
 		let attempts = 0;
+		// per-upload overrides were previously the only limits read here, so keep honouring them
+		const maxPartAttempts = data.maxPartAttempts || this.maxPartAttempts;
+		const maxTotalErrors = data.maxTotalErrors || this.maxTotalErrors;
 		const upload = () => {
 			this.request({
 				url: 'b2_get_upload_url',
@@ -1265,6 +1269,7 @@ const b2CloudStorage = class {
 				if (err) {
 					return callback(err);
 				}
+				const fileStream = fs.createReadStream(filename, { highWaterMark: streamHighWaterMark(data.size) });
 				const requestData = {
 					apiUrl: results.uploadUrl,
 					appendPath: false,
@@ -1277,7 +1282,7 @@ const b2CloudStorage = class {
 						'X-Bz-File-Name': data.fileName,
 						'X-Bz-Content-Sha1': data.hash === false ? 'do_not_verify' : data.hash,
 					},
-					body: fs.createReadStream(filename, { highWaterMark: streamHighWaterMark(data.size) }),
+					body: fileStream,
 				};
 				if (data.testMode) {
 					requestData.headers['X-Bz-Test-Mode'] = data.testMode;
@@ -1297,7 +1302,7 @@ const b2CloudStorage = class {
 				req = this.request(requestData, function(err, results, res) {
 					attempts++;
 					if (err) {
-						if (attempts > data.maxPartAttempts || attempts > data.maxTotalErrors) {
+						if (attempts > maxPartAttempts || attempts > maxTotalErrors) {
 							return callback(new Error('Exceeded max retry attempts for upload'));
 						}
 						// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
@@ -1328,10 +1333,8 @@ const b2CloudStorage = class {
 					if (!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function') {
 						return;
 					}
-					let bytesDispatched = 0;
-					if (req.req && req.req.connection && req.req.connection._bytesDispatched) {
-						bytesDispatched = req.req.connection._bytesDispatched;
-					}
+					// the socket's byte count spans every request on a keep-alive connection, so count this file's bytes instead
+					const bytesDispatched = fileStream.bytesRead;
 					const percent = Math.floor((bytesDispatched / data.size) * 100);
 					info.progress = {
 						percent: percent,
@@ -1582,6 +1585,7 @@ const b2CloudStorage = class {
 						encoding: null,
 						highWaterMark: streamHighWaterMark(task.size),
 					});
+					url.fileStream = fileStream;
 
 					let streamErrorHandled = false;
 					const cleanupStreams = function() {
@@ -1592,6 +1596,7 @@ const b2CloudStorage = class {
 						}
 						url.in_use = false;
 						url.request = null;
+						url.fileStream = null;
 					};
 
 					const handleStreamError = function(err) {
@@ -1631,6 +1636,7 @@ const b2CloudStorage = class {
 						// release upload url
 						url.in_use = false;
 						url.request = null;
+						url.fileStream = null;
 
 						const retry = function() {
 							return generateUploadURL(urlIndex, function(err) {
@@ -1717,20 +1723,21 @@ const b2CloudStorage = class {
 					if (!data.onUploadProgress || typeof(data.onUploadProgress) !== 'function') {
 						return;
 					}
-					let bytesDispatched = 0;
-					bytesDispatched = _.sumBy(Object.values(info.upload_urls), function(url) {
-						if (url && url.request && url.request.req && url.request.req.connection && url.request.req.connection._bytesDispatched) {
-							return url.request.req.connection._bytesDispatched;
+					// completed parts plus bytes read by in-flight parts; socket byte counts would double count parts sharing a keep-alive connection
+					let bytesDispatched = info.totalUploaded;
+					for (const url of Object.values(info.upload_urls)) {
+						if (url.fileStream) {
+							bytesDispatched += url.fileStream.bytesRead;
 						}
-						return 0;
-					});
-					bytesDispatched = _.clamp(bytesDispatched + info.totalUploaded, data.size);
+					}
+					bytesDispatched = Math.min(bytesDispatched, data.size);
 					const percent = Math.floor((bytesDispatched / data.size) * 100);
-					return data.onUploadProgress({
+					info.progress = {
 						percent: percent,
 						bytesDispatched: bytesDispatched,
 						bytesTotal: data.size,
-					});
+					};
+					return data.onUploadProgress(info.progress);
 				}, data.progressInterval || 250);
 
 				queue.push(info.chunks);
