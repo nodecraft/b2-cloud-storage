@@ -26,10 +26,14 @@ describe('copyFile large file', function() {
 	it('copies every part when the size is an exact multiple of the part size', function(done) {
 		const b2 = new b2CloudStorage({ auth, maxSmallCopyFileSize: partSize });
 		b2.authorize(function(err) {
-			if (err) { return done(err); }
+			if (err) {
+				return done(err);
+			}
 			// a stalled copy part queue never calls back at all, so this times out rather than erroring
 			return copyLarge(b2, partSize * 5, function(err, results) {
-				if (err) { return done(err); }
+				if (err) {
+					return done(err);
+				}
 				assert.strictEqual(results.fileId, config.file.largeCopy.fileId);
 				assert.strictEqual(results.partCount, 5);
 				return done();
@@ -40,9 +44,13 @@ describe('copyFile large file', function() {
 	it('copies every part when the last part is a remainder', function(done) {
 		const b2 = new b2CloudStorage({ auth, maxSmallCopyFileSize: partSize });
 		b2.authorize(function(err) {
-			if (err) { return done(err); }
+			if (err) {
+				return done(err);
+			}
 			return copyLarge(b2, (partSize * 4) + 1234, function(err, results) {
-				if (err) { return done(err); }
+				if (err) {
+					return done(err);
+				}
 				assert.strictEqual(results.partCount, 5);
 				return done();
 			});
@@ -52,7 +60,9 @@ describe('copyFile large file', function() {
 	it('copies in a single request when the file is under the chunking threshold', function(done) {
 		const b2 = new b2CloudStorage({ auth });
 		b2.authorize(function(err) {
-			if (err) { return done(err); }
+			if (err) {
+				return done(err);
+			}
 			return b2.copyFile({
 				sourceFileId: config.file.source.fileId,
 				fileName: config.file.destination.fileName,
@@ -61,7 +71,9 @@ describe('copyFile large file', function() {
 				hash: config.file.source.contentSha1,
 				size: config.file.source.contentLength,
 			}, function(err, results) {
-				if (err) { return done(err); }
+				if (err) {
+					return done(err);
+				}
 				// `b2_copy_file`, not a large file, so there is no part count
 				assert.strictEqual(results.partCount, undefined);
 				return done();

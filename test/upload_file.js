@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert');
-const crypto = require('node:crypto');
+const { randomBytes } = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -24,7 +24,7 @@ describe('uploadFile', function() {
 	before(function() {
 		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'b2-upload-test-'));
 		smallFile = path.join(tmpDir, 'small.txt');
-		fs.writeFileSync(smallFile, crypto.randomBytes(1000).toString('hex'));
+		fs.writeFileSync(smallFile, randomBytes(1000).toString('hex'));
 
 		const api = nock(apiUrl).persist();
 		api.post('/b2api/v2/b2_get_upload_url').reply(function() {
@@ -83,7 +83,9 @@ describe('uploadFile', function() {
 	it('retries a transient small upload failure and succeeds', function(done) {
 		state.failUploads = 1;
 		uploadSmall(createClient(), {}, function(err, results) {
-			if (err) { return done(err); }
+			if (err) {
+				return done(err);
+			}
 			assert.strictEqual(results.fileId, 'small-file-id');
 			assert.strictEqual(state.uploads.length, 2);
 			return done();

@@ -2,7 +2,7 @@
 module.exports = function(mocks, config) {
 	/* get file info with invalid headers */
 	mocks.api.post('/b2api/v2/b2_get_file_info').matchHeader('authorization', function(val) {
-		return val !== config.auth.all.authToken && val !== config.auth.buckets.authToken && val !== config.auth.none.authToken;
+		return ![config.auth.all.authToken, config.auth.buckets.authToken, config.auth.none.authToken].includes(val);
 	}).reply(401, { code: 'bad_auth_token', message: '', status: 401 });
 
 	/* create bucket with valid headers and missing `fileId` */

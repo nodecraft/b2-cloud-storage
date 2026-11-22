@@ -37,7 +37,7 @@ describe('b2CloudStorage', function() {
 		const b2 = new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' } });
 		assert.strictEqual(b2.maxCopyWorkers, os.availableParallelism() * 5);
 		// async.queue never starts a worker when concurrency is NaN, which stalls large copies forever
-		assert(Number.isInteger(b2.maxCopyWorkers), 'maxCopyWorkers must be an integer');
+		assert(Number.isSafeInteger(b2.maxCopyWorkers), 'maxCopyWorkers must be an integer');
 		assert(b2.maxCopyWorkers >= 1, 'maxCopyWorkers must be at least 1');
 	});
 
@@ -45,7 +45,7 @@ describe('b2CloudStorage', function() {
 		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: 0 }), /maxCopyWorkers/);
 		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: -1 }), /maxCopyWorkers/);
 		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: 2.5 }), /maxCopyWorkers/);
-		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: Number.NaN }), /maxCopyWorkers/);
+		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: NaN }), /maxCopyWorkers/);
 		assert.throws(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: Infinity }), /maxCopyWorkers/);
 		assert.doesNotThrow(() => new b2CloudStorage({ auth: { accountId: 'bar', applicationKey: 'foo' }, maxCopyWorkers: 1 }));
 	});

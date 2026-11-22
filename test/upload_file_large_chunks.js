@@ -89,7 +89,7 @@ describe('uploadFileLarge chunk builder', function() {
 	it('throws when part size is NaN or Infinity', function() {
 		assert.throws(() => b2CloudStorage.buildLargeUploadChunks({
 			size: 100,
-			partSize: Number.NaN,
+			partSize: NaN,
 		}), /part size/i);
 
 		assert.throws(() => b2CloudStorage.buildLargeUploadChunks({
@@ -100,7 +100,7 @@ describe('uploadFileLarge chunk builder', function() {
 
 	it('throws when file size is NaN, undefined, or Infinity', function() {
 		assert.throws(() => b2CloudStorage.buildLargeUploadChunks({
-			size: Number.NaN,
+			size: NaN,
 			partSize: 100,
 		}), /file size must be a finite number/i);
 
