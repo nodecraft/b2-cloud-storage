@@ -2,7 +2,7 @@
 module.exports = function(mocks, config) {
 	/* Cancels the upload of a large file, and deletes all of the parts that have been uploaded. */
 	mocks.api.post('/b2api/v2/b2_cancel_large_file').matchHeader('authorization', function(val) {
-		return val !== config.auth.all.authToken && val !== config.auth.buckets.authToken && val !== config.auth.none.authToken;
+		return ![config.auth.all.authToken, config.auth.buckets.authToken, config.auth.none.authToken].includes(val);
 	}).reply(401, { code: 'bad_auth_token', message: '', status: 401 });
 
 	/* Cancels the upload of a large file, and deletes all of the parts that have been uploaded and missing `fileId` */

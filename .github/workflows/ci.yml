@@ -1,0 +1,91 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only by default; jobs that need more ask for it themselves.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        node: [24, 26]
+    name: Node ${{ matrix.node }} Test
+    # Only PR runs are cancelled: on main a cancelled test would also skip that commit's release.
+    concurrency:
+      group: test-${{ matrix.node }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup node
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: "npm"
+      - run: npm ci --ignore-scripts
+      # Lint and coverage results don't vary by runtime, so check and report them once.
+      - if: matrix.node == 26
+        run: npm run lint
+      - run: npm run mocha
+      - if: matrix.node == 26
+        run: npm run coverage
+      - if: matrix.node == 26
+        name: Coveralls
+        uses: coverallsapp/github-action@v2.3.8
+
+  # Fails when actions.lock drifts from the workflows or a locked pin no longer verifies upstream.
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: Verify actions.lock
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      # Pinned because Dependabot can't bump gh extensions; update it by hand.
+      - run: gh extension install github/gh-actions-lock --pin v0.4.1
+      - run: gh actions-lock --verify
+
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    name: Release
+    needs: [test, lockfile]
+    if: github.repository == 'nodecraft/b2-cloud-storage' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # npm trusted publishing is bound to this environment, which only main may deploy to.
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/b2-cloud-storage
+    permissions:
+      contents: write # release tags and GitHub releases
+      issues: write # semantic-release comments on released issues
+      pull-requests: write # semantic-release comments on released PRs
+      id-token: write # npm trusted publishing
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # No dependency cache here, so nothing a PR run wrote can end up in a published tarball.
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 26
+          registry-url: "https://registry.npmjs.org"
+      - run: npm ci --ignore-scripts
+      - name: Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release

@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert');
-const crypto = require('node:crypto');
+const { createHash, randomBytes } = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -27,7 +27,9 @@ describe('upload progress', function() {
 		nock.enableNetConnect('127.0.0.1');
 		server = http.createServer(function(req, res) {
 			const chunks = [];
-			req.on('data', chunk => chunks.push(chunk));
+			req.on('data', (chunk) => {
+				chunks.push(chunk);
+			});
 			req.on('end', function() {
 				const body = Buffer.concat(chunks);
 				const name = req.url.split('/').pop();
@@ -42,7 +44,7 @@ describe('upload progress', function() {
 					reply = { fileId: 'large-file-id' };
 				} else if (name === 'upload_file' || name === 'upload_part') {
 					state.uploadCount++;
-					reply = { fileId: 'file-id', contentSha1: 'unverified:' + crypto.createHash('sha1').update(body).digest('hex') };
+					reply = { fileId: 'file-id', contentSha1: 'unverified:' + createHash('sha1').update(body).digest('hex') };
 				}
 				const respond = function() {
 					state.holding = false;
@@ -83,7 +85,7 @@ describe('upload progress', function() {
 
 	function writeFile(name, size) {
 		const file = path.join(tmpDir, name);
-		fs.writeFileSync(file, crypto.randomBytes(size));
+		fs.writeFileSync(file, randomBytes(size));
 		return file;
 	}
 
@@ -111,11 +113,15 @@ describe('upload progress', function() {
 		};
 		state.holdUpload = 1;
 		upload(function(err) {
-			if (err) { return done(err); }
+			if (err) {
+				return done(err);
+			}
 			// the second upload reuses the first upload's keep-alive socket
 			state.uploadCount = 0;
 			upload(function(err, heldSamples) {
-				if (err) { return done(err); }
+				if (err) {
+					return done(err);
+				}
 				assert(heldSamples.length > 0, 'expected progress samples while the response was held');
 				for (const bytes of heldSamples) {
 					assert.strictEqual(bytes, size);
@@ -148,7 +154,9 @@ describe('upload progress', function() {
 				}
 			},
 		}, function(err) {
-			if (err) { return done(err); }
+			if (err) {
+				return done(err);
+			}
 			assert(heldSamples.length > 0, 'expected progress samples while the response was held');
 			// part 1 is finished and part 2 is fully sent but not yet acknowledged
 			for (const bytes of heldSamples) {

@@ -2,7 +2,7 @@
 module.exports = function(mocks, config) {
 	/* finish large file with invalid headers */
 	mocks.api.post('/b2api/v2/b2_finish_large_file').matchHeader('authorization', function(val) {
-		return val !== config.auth.all.authToken && val !== config.auth.buckets.authToken && val !== config.auth.none.authToken;
+		return ![config.auth.all.authToken, config.auth.buckets.authToken, config.auth.none.authToken].includes(val);
 	}).reply(401, { code: 'bad_auth_token', message: '', status: 401 });
 
 	/* finish large file with valid headers and missing `fileId` */

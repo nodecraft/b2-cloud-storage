@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/explicit-length-check */
 'use strict';
-const crypto = require('node:crypto');
+const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const { Transform } = require('node:stream');
@@ -20,65 +20,6 @@ const streamHighWaterMark = size => Math.max(Math.min(size, 1_048_576), 65536);
  * Backblaze B2 Cloud Storage class to handle stream-based uploads and all other API methods.
  */
 const b2CloudStorage = class {
-	/**
-     * Creates new instance of the b2CloudStorage class.
-     * @param  {object} options Required: Class options to set auth and other options
-     * @param  {object} options.auth Authentication object
-     * @param  {string} options.auth.accountId Backblaze b2 account ID for the API key.
-     * @param  {string} options.auth.applicationKey Backblaze b2 application API key.
-     * @param  {number} options.maxSmallFileSize Maximum filesize for the upload to upload as a single upload. Any larger size will be chunked as a Large File upload.
-     * @param  {number} options.maxSmallCopyFileSize Maximum filesize for a copy to run as a single copy. Any larger size will be chunked as a Large File copy.
-     * @param  {number} options.maxCopyWorkers Number of concurrent part copy requests when copying a Large File. Must be a positive integer.
-     * @param  {string} options.url URL hostname to use when authenticating to Backblaze B2. This omits `b2api/` and the version from the URI.
-     * @param  {string} options.version API version used in the Backblaze B2 url. This follows hthe `b2api/` part of the URI.
-     * @param  {number} options.maxPartAttempts Maximum retries each part can reattempt before erroring when uploading a Large File.
-     * @param  {number} options.maxTotalErrors Maximum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed.
-     * @param  {number} options.maxReauthAttempts Maximum times this library will try to reauthenticate if an auth token expires, before assuming failure.
-     * @param  {number} options.defaultUploadConcurrency Default number of concurrent part uploads for large files. Defaults to 4.
-     * @return {undefined}
-     */
-	constructor(options) {
-		if (!options || !options.auth) {
-			throw new Error('Missing authentication object');
-		}
-		if (!options.auth.accountId) {
-			throw new Error('Missing authentication accountId');
-		}
-		if (!options.auth.applicationKey) {
-			throw new Error('Missing authentication applicationKey');
-		}
-
-		this.maxSmallFileSize = options.maxSmallFileSize || 100_000_000; // default to 100MB
-		if (this.maxSmallFileSize > 5_000_000_000) {
-			throw new Error('maxSmallFileSize can not exceed 5GB');
-		}
-		if (this.maxSmallFileSize < 100_000_000) {
-			throw new Error('maxSmallFileSize can not be less than 100MB');
-		}
-
-		this.maxCopyWorkers = options.maxCopyWorkers ?? (os.availableParallelism() * 5); // default to the number of available CPUs * 5 (web requests are cheap)
-		// A non-positive or non-finite value silently stalls the copy part queue forever, so fail loudly here instead
-		if (!Number.isInteger(this.maxCopyWorkers) || this.maxCopyWorkers < 1) {
-			throw new Error('maxCopyWorkers must be a positive integer');
-		}
-
-		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 100MB
-		if (this.maxSmallCopyFileSize > 5_000_000_000) {
-			throw new Error('maxSmallFileSize can not exceed 5GB');
-		}
-		if (this.maxSmallCopyFileSize < 5_000_000) {
-			throw new Error('maxSmallFileSize can not be less than 5MB');
-		}
-
-		this.auth = options.auth;
-		this.url = options.url || 'https://api.backblazeb2.com';
-		this.version = options.version || 'v2';
-		this.maxPartAttempts = options.maxPartAttempts || 3; // retry each chunk up to 3 times
-		this.maxTotalErrors = options.maxTotalErrors || 10; // quit if 10 chunks fail
-		this.maxReauthAttempts = options.maxReauthAttempts || 3; // quit if 3 re-auth attempts fail
-		this.defaultUploadConcurrency = options.defaultUploadConcurrency || 4;
-	}
-
 	/**
      * Helper method: Properly URL encode filenames to prevent B2 throwing errors with spaces, etc.
      * @param {string} fileName File name for upload
@@ -106,14 +47,12 @@ const b2CloudStorage = class {
      * @throws {Error} When a chunk's computed size is zero or its byte range is invalid
      */
 	static buildLargeUploadChunks(data) {
-		const maxPartCount = 10000;
 		if (!Number.isFinite(data.partSize) || data.partSize <= 0) {
 			throw new Error('B2 part size must be greater than zero (got: ' + data.partSize + ')');
 		}
 		if (!Number.isFinite(data.size)) {
 			throw new TypeError('B2 file size must be a finite number (got: ' + data.size + ')');
 		}
-
 		const size = data.size;
 		if (size < 0) {
 			throw new Error('B2 file size must not be negative');
@@ -127,6 +66,7 @@ const b2CloudStorage = class {
 			};
 		}
 
+		const maxPartCount = 10000;
 		const uploadedParts = data.uploadedParts || {};
 		const lastConsecutivePart = data.lastConsecutivePart || 0;
 		const lastUploadedPart = data.lastUploadedPart || 0;
@@ -183,7 +123,7 @@ const b2CloudStorage = class {
 
 			partTemplate.end += currentPartSize;
 			if (partTemplate.end > lastByte) {
-				currentPartSize = currentPartSize - (partTemplate.end - lastByte);
+				currentPartSize -= (partTemplate.end - lastByte);
 				partTemplate.end = lastByte;
 			}
 
@@ -221,6 +161,68 @@ const b2CloudStorage = class {
 			lastPart: lastPart,
 			missingPartSize: missingPartSize,
 		};
+	}
+
+	authData;
+	downloadUrl;
+
+	/**
+     * Creates new instance of the b2CloudStorage class.
+     * @param  {object} options Required: Class options to set auth and other options
+     * @param  {object} options.auth Authentication object
+     * @param  {string} options.auth.accountId Backblaze b2 account ID for the API key.
+     * @param  {string} options.auth.applicationKey Backblaze b2 application API key.
+     * @param  {number} options.maxSmallFileSize Maximum filesize for the upload to upload as a single upload. Any larger size will be chunked as a Large File upload.
+     * @param  {number} options.maxSmallCopyFileSize Maximum filesize for a copy to run as a single copy. Any larger size will be chunked as a Large File copy.
+     * @param  {number} options.maxCopyWorkers Number of concurrent part copy requests when copying a Large File. Must be a positive integer.
+     * @param  {string} options.url URL hostname to use when authenticating to Backblaze B2. This omits `b2api/` and the version from the URI.
+     * @param  {string} options.version API version used in the Backblaze B2 url. This follows hthe `b2api/` part of the URI.
+     * @param  {number} options.maxPartAttempts Maximum retries each part can reattempt before erroring when uploading a Large File.
+     * @param  {number} options.maxTotalErrors Maximum total errors the collective list of file parts can trigger (below the individual maxPartAttempts) before the Large File upload is considered failed.
+     * @param  {number} options.maxReauthAttempts Maximum times this library will try to reauthenticate if an auth token expires, before assuming failure.
+     * @param  {number} options.defaultUploadConcurrency Default number of concurrent part uploads for large files. Defaults to 4.
+     * @return {undefined}
+     */
+	constructor(options) {
+		if (!options || !options.auth) {
+			throw new Error('Missing authentication object');
+		}
+		if (!options.auth.accountId) {
+			throw new Error('Missing authentication accountId');
+		}
+		if (!options.auth.applicationKey) {
+			throw new Error('Missing authentication applicationKey');
+		}
+
+		this.maxSmallFileSize = options.maxSmallFileSize || 100_000_000; // default to 100MB
+		if (this.maxSmallFileSize > 5_000_000_000) {
+			throw new Error('maxSmallFileSize can not exceed 5GB');
+		}
+		if (this.maxSmallFileSize < 100_000_000) {
+			throw new Error('maxSmallFileSize can not be less than 100MB');
+		}
+
+		this.maxCopyWorkers = options.maxCopyWorkers ?? (os.availableParallelism() * 5); // default to the number of available CPUs * 5 (web requests are cheap)
+		// A non-positive or non-finite value silently stalls the copy part queue forever, so fail loudly here instead
+		if (!Number.isSafeInteger(this.maxCopyWorkers) || this.maxCopyWorkers < 1) {
+			throw new Error('maxCopyWorkers must be a positive integer');
+		}
+
+		this.maxSmallCopyFileSize = options.maxSmallCopyFileSize || 100_000_000; // default to 100MB
+		if (this.maxSmallCopyFileSize > 5_000_000_000) {
+			throw new Error('maxSmallFileSize can not exceed 5GB');
+		}
+		if (this.maxSmallCopyFileSize < 5_000_000) {
+			throw new Error('maxSmallFileSize can not be less than 5MB');
+		}
+
+		this.auth = options.auth;
+		this.url = options.url || 'https://api.backblazeb2.com';
+		this.version = options.version || 'v2';
+		this.maxPartAttempts = options.maxPartAttempts || 3; // retry each chunk up to 3 times
+		this.maxTotalErrors = options.maxTotalErrors || 10; // quit if 10 chunks fail
+		this.maxReauthAttempts = options.maxReauthAttempts || 3; // quit if 3 re-auth attempts fail
+		this.defaultUploadConcurrency = options.defaultUploadConcurrency || 4;
 	}
 
 	/**
@@ -524,10 +526,10 @@ const b2CloudStorage = class {
 					if (err) {
 						return cb(err);
 					}
-					data.size = data.size || results.contentLength;
-					data.hash = data.hash || results.contentSha1;
-					data.destinationBucketId = data.destinationBucketId || results.bucketId;
-					data.contentType = data.contentType || results.contentType;
+					data.size ||= results.contentLength;
+					data.hash ||= results.contentSha1;
+					data.destinationBucketId ||= results.bucketId;
+					data.contentType ||= results.contentType;
 					return cb();
 				});
 			},
@@ -958,7 +960,7 @@ const b2CloudStorage = class {
      * @param {Function} [callback]
      */
 	getHash(fileStream, callback) {
-		const hash = crypto.createHash('sha1');
+		const hash = createHash('sha1');
 		fileStream.on('data', function(chunk) {
 			hash.update(chunk);
 		}).on('error', err => callback(err)).on('end', function() {
@@ -1306,7 +1308,7 @@ const b2CloudStorage = class {
 							return callback(new Error('Exceeded max retry attempts for upload'));
 						}
 						// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
-						if (err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') {
+						if (['EPIPE', 'ETIMEDOUT', 'ESOCKETTIMEDOUT'].includes(err.code)) {
 							return upload();
 						}
 						// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
@@ -1388,7 +1390,7 @@ const b2CloudStorage = class {
 		};
 		// TODO: handle update callbacks
 
-		data.limit = data.limit || self.defaultUploadConcurrency;
+		data.limit ||= self.defaultUploadConcurrency;
 
 		const generateUploadURL = function(num, callback) {
 			self.request({
@@ -1559,11 +1561,15 @@ const b2CloudStorage = class {
 					let url = null;
 					let urlIndex = null;
 					for (const key in info.upload_urls) {
-						if (url) { break; }
-						if (info.upload_urls[key].in_use === false) {
-							url = info.upload_urls[key];
-							urlIndex = key;
+						if (url) {
+							break;
 						}
+						if (info.upload_urls[key].in_use !== false) {
+							continue;
+						}
+
+						url = info.upload_urls[key];
+						urlIndex = key;
 					}
 					if (!urlIndex || !url) {
 						return reQueue(task, false);
@@ -1572,7 +1578,7 @@ const b2CloudStorage = class {
 					url.request = null;
 
 					// single-read: hash the part data while streaming the upload, then verify against B2's response
-					const sha1 = crypto.createHash('sha1');
+					const sha1 = createHash('sha1');
 					const hashTransform = new Transform({
 						transform(chunk, encoding, cb) {
 							sha1.update(chunk);
@@ -1600,7 +1606,9 @@ const b2CloudStorage = class {
 					};
 
 					const handleStreamError = function(err) {
-						if (streamErrorHandled) { return; }
+						if (streamErrorHandled) {
+							return;
+						}
 						streamErrorHandled = true;
 						cleanupStreams();
 						info.totalErrors++;
@@ -1641,7 +1649,9 @@ const b2CloudStorage = class {
 						const retry = function() {
 							return generateUploadURL(urlIndex, function(err) {
 								// if we're unable to get an upload URL from B2, we can't attempt to retry
-								if (err) { return queueCB(err); }
+								if (err) {
+									return queueCB(err);
+								}
 								reQueue(task);
 								return queueCB();
 							});
@@ -1657,7 +1667,7 @@ const b2CloudStorage = class {
 								return queueCB(err);
 							}
 							// handle connection failures that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
-							if (err.code === 'EPIPE' || err.code === 'ETIMEDOUT' || err.code === 'ESOCKETTIMEDOUT') {
+							if (['EPIPE', 'ETIMEDOUT', 'ESOCKETTIMEDOUT'].includes(err.code)) {
 								return retry();
 							}
 							// handle status codes that should trigger a retry (https://www.backblaze.com/b2/docs/integration_checklist.html)
@@ -1688,9 +1698,7 @@ const b2CloudStorage = class {
 						if (!normalizedRemoteHash || normalizedRemoteHash !== localHash) {
 							info.totalErrors++;
 							if (task.attempts > self.maxPartAttempts || info.totalErrors >= self.maxTotalErrors) {
-								const hashErr = !normalizedRemoteHash
-									? new Error('B2 response missing contentSha1 for hash verification')
-									: new Error('SHA1 mismatch: local ' + localHash + ' != remote ' + normalizedRemoteHash);
+								const hashErr = new Error(!normalizedRemoteHash ? 'B2 response missing contentSha1 for hash verification' : 'SHA1 mismatch: local ' + localHash + ' != remote ' + normalizedRemoteHash);
 								info.error = hashErr;
 								return queueCB(hashErr);
 							}
