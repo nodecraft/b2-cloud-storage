@@ -35,7 +35,7 @@
 	"dependencies": {
 		"async": "^3.2.6",
 		"lodash": "^4.18.1",
-		"request": "npm:postman-request@^2.88.1-postman.49"
+		"request": "npm:postman-request@^2.88.1-postman.52"
 	},
 	"devDependencies": {
 		"@nodecraft/eslint-config": "^54.0.0",
