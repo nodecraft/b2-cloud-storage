@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # Cooldowns match min-release-age in .npmrc so Dependabot never proposes a version npm would refuse.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      dev-dependencies:
+        dependency-type: development
+    ignore:
+      # nock 15.0.0 was published by accident; upstream says to stay on v14.
+      - dependency-name: nock
+        update-types: ["version-update:semver-major"]
+
+  # Keeps the workflow actions and their actions.lock pins current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
